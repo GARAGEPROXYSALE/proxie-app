@@ -48,7 +48,15 @@
       "Bash(curl -s https://uraixvdffarhezhopngt.supabase.co/rest/v1/ -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVyYWl4dmRmZmFyaGV6aG9wbmd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2MzEwNjcsImV4cCI6MjA5NDIwNzA2N30.wpOT-gybgaOOL178ixnExgb9uszlS8UJ8F4PBcgYfCA' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVyYWl4dmRmZmFyaGV6aG9wbmd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2MzEwNjcsImV4cCI6MjA5NDIwNzA2N30.wpOT-gybgaOOL178ixnExgb9uszlS8UJ8F4PBcgYfCA')",
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(k\\) for k in d.get\\('definitions',{}\\).keys\\(\\)]\")",
       "Bash(git config *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(pbcopy)",
+      "Bash(git push *)",
+      "Bash(python3 -c \"import sys,json; p=json.load\\(sys.stdin\\); print\\('eas-cli' in str\\(p\\)\\)\")",
+      "Bash(npx eas-cli *)",
+      "Bash(./node_modules/.bin/eas whoami *)",
+      "Bash(./node_modules/.bin/eas login *)",
+      "Bash(jobs)"
     ]
   }
 }

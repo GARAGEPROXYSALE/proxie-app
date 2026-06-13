@@ -39,7 +39,8 @@
     "plugins": [
       "expo-image-picker",
       "expo-font",
-      "expo-asset"
+      "expo-asset",
+      "expo-build-properties"
     ]
   }
 }

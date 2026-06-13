@@ -1,6 +1,6 @@
+redirectsOrigin = "config"
 plugins = []
 headers = []
-redirects = []
 
 [functions]
 
@@ -8,11 +8,12 @@ redirects = []
 
 [build]
 publish = "/Users/psrncshop/PROXIMITY GARAGE/dist"
-publishOrigin = "ui"
-commandOrigin = "ui"
-command = "expo export -p web"
+publishOrigin = "config"
+commandOrigin = "config"
+command = "npx expo export -p web"
 
 [build.environment]
+NODE_VERSION = "20"
 
 [build.processing]
 
@@ -25,3 +26,15 @@ command = "expo export -p web"
 [build.processing.js]
 
 [build.services]
+
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200.0
+force = false
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]
