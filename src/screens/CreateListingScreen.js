@@ -10,6 +10,7 @@ import { useApp } from '../context/AppContext';
 import { getUserLocation } from '../lib/location';
 import { uploadListingPhoto } from '../lib/db';
 import { supabase } from '../lib/supabase';
+import { sanitizeText, sanitizePrice, validateListingPayload } from '../lib/sanitize';
 import colors from '../theme/colors';
 
 const CONDITIONS = ['New', 'Like New', 'Good', 'Fair'];
@@ -74,13 +75,14 @@ export default function CreateListingScreen({ navigation }) {
   };
 
   const handlePublish = async () => {
-    if (!isValid) {
-      Alert.alert('Missing info', 'Please fill in all required fields.');
-      return;
-    }
+    const cleanTitle = sanitizeText(title, 80);
+    const cleanDesc = sanitizeText(description, 500);
+    const cleanPrice = sanitizePrice(price);
+    const errors = validateListingPayload({ title: cleanTitle, price: cleanPrice, description: cleanDesc, category });
+    if (errors.length > 0) { Alert.alert('Missing info', errors[0]); return; }
+
     setPublishing(true);
     try {
-      // Upload photos to Supabase Storage
       const { data: { session } } = await supabase.auth.getSession();
       let uploadedUrls = [];
       if (session?.user && photos.length > 0) {
@@ -88,13 +90,13 @@ export default function CreateListingScreen({ navigation }) {
           photos.map((uri) => uploadListingPhoto(uri, session.user.id))
         );
       } else {
-        uploadedUrls = photos; // use local URIs if not authenticated
+        uploadedUrls = photos;
       }
 
       await addListing({
-        title: title.trim(),
-        price: parseFloat(price) || 0,
-        description: description.trim(),
+        title: cleanTitle,
+        price: cleanPrice,
+        description: cleanDesc,
         condition,
         category,
         photos: uploadedUrls,

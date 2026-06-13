@@ -97,12 +97,30 @@ export async function incrementViewsRPC(listingId) {
 
 // ── Photo upload ──────────────────────────────────────────────
 
-export async function uploadListingPhoto(uri, userId) {
-  const ext = uri.split('.').pop()?.split('?')[0] || 'jpg';
-  const path = `${userId}/${Date.now()}.${ext}`;
+const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif']);
+const MAX_PHOTO_BYTES = 10 * 1024 * 1024; // 10 MB
+const MAX_AVATAR_BYTES = 5 * 1024 * 1024; // 5 MB
 
+function validateImageBlob(blob, maxBytes) {
+  const type = blob.type || '';
+  // HEIC files often report as application/octet-stream on some devices — allow them
+  if (!ALLOWED_IMAGE_TYPES.has(type) && !type.startsWith('image/')) {
+    throw new Error(`File type not allowed: ${type || 'unknown'}. Use JPEG, PNG, or WebP.`);
+  }
+  if (blob.size > maxBytes) {
+    const mb = (maxBytes / 1024 / 1024).toFixed(0);
+    throw new Error(`File too large. Maximum size is ${mb} MB.`);
+  }
+}
+
+export async function uploadListingPhoto(uri, userId) {
   const response = await fetch(uri);
   const blob = await response.blob();
+
+  validateImageBlob(blob, MAX_PHOTO_BYTES);
+
+  const ext = (blob.type || 'image/jpeg').split('/')[1].replace('jpeg', 'jpg') || 'jpg';
+  const path = `${userId}/${Date.now()}.${ext}`;
 
   const { error } = await supabase.storage
     .from('listing-photos')
@@ -115,11 +133,13 @@ export async function uploadListingPhoto(uri, userId) {
 }
 
 export async function uploadAvatar(uri, userId) {
-  const ext = uri.split('.').pop()?.split('?')[0] || 'jpg';
-  const path = `${userId}/avatar.${ext}`;
-
   const response = await fetch(uri);
   const blob = await response.blob();
+
+  validateImageBlob(blob, MAX_AVATAR_BYTES);
+
+  const ext = (blob.type || 'image/jpeg').split('/')[1].replace('jpeg', 'jpg') || 'jpg';
+  const path = `${userId}/avatar.${ext}`;
 
   const { error } = await supabase.storage
     .from('avatars')

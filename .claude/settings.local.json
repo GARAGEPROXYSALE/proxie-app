@@ -56,7 +56,10 @@
       "Bash(npx eas-cli *)",
       "Bash(./node_modules/.bin/eas whoami *)",
       "Bash(./node_modules/.bin/eas login *)",
-      "Bash(jobs)"
+      "Bash(jobs)",
+      "Bash(npm audit *)",
+      "Bash(python3 -c ' *)",
+      "Bash(awk '{print $5, $9}')"
     ]
   }
 }
