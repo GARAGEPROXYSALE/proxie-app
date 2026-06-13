@@ -55,6 +55,8 @@ export async function insertListing(listing) {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.user) throw new Error('Not authenticated');
 
+  // seller_id always comes from the verified session — never from the client payload
+  // is_boosted, is_promoted, seller_type (store) are set server-side or by admins only
   const { data, error } = await supabase
     .from('listings')
     .insert({
@@ -67,8 +69,6 @@ export async function insertListing(listing) {
       latitude: listing.latitude,
       longitude: listing.longitude,
       address: listing.address,
-      seller_type: listing.seller_type || 'individual',
-      store_id: listing.store_id || null,
     })
     .select()
     .single();
@@ -317,11 +317,16 @@ export async function deleteWishlistEntry(id) {
 
 // ── Profile ───────────────────────────────────────────────────
 
+// Allowlist prevents mass-assignment of privileged fields (rating, sales, seller_type, store_id)
+const PROFILE_SAFE_FIELDS = new Set(['display_name', 'avatar_url', 'bio', 'building', 'status']);
+
 export async function updateProfile(userId, updates) {
-  const { error } = await supabase
-    .from('profiles')
-    .update(updates)
-    .eq('id', userId);
+  const safe = {};
+  for (const [k, v] of Object.entries(updates)) {
+    if (PROFILE_SAFE_FIELDS.has(k)) safe[k] = v;
+  }
+  if (Object.keys(safe).length === 0) return;
+  const { error } = await supabase.from('profiles').update(safe).eq('id', userId);
   if (error) throw error;
 }
 
