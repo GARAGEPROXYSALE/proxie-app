@@ -1,0 +1,45 @@
+{
+  "expo": {
+    "name": "Proxie",
+    "slug": "proxie",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#EAF0F8"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.proxie.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Proxie needs your location to show nearby garage sale items.",
+        "NSCameraUsageDescription": "Proxie needs camera access to take photos of your listings.",
+        "NSPhotoLibraryUsageDescription": "Proxie needs photo library access to add photos to your listings."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#EAF0F8"
+      },
+      "package": "com.proxie.app",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "viewport": "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+    },
+    "plugins": [
+      "expo-image-picker",
+      "expo-font",
+      "expo-asset"
+    ]
+  }
+}
