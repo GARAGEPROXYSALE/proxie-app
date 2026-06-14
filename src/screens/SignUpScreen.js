@@ -113,10 +113,10 @@ export default function SignUpScreen({ navigation, route }) {
       const fullUserData = { ...userData, id: data.user?.id };
 
       if (data.session) {
-        // Email confirmation disabled — user is authenticated immediately
-        navigation.navigate('LocationPerm', { userType: 'host', userData: fullUserData });
+        // Email confirmation disabled — go straight to phone verification
+        navigation.navigate('PhoneVerify', { userType: 'host', userData: fullUserData });
       } else {
-        // Email confirmation required — send them to the verify screen
+        // Email confirmation required — verify email first, then phone
         navigation.navigate('EmailVerify', {
           email: email.trim(),
           userType: 'host',

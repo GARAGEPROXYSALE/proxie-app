@@ -31,6 +31,7 @@ import SellerProfileScreen from './src/screens/SellerProfileScreen';
 import SignInScreen from './src/screens/SignInScreen';
 import EmailVerifyScreen from './src/screens/EmailVerifyScreen';
 import EditProfileScreen from './src/screens/EditProfileScreen';
+import PhoneVerifyScreen from './src/screens/PhoneVerifyScreen';
 import WishlistScreen from './src/screens/WishlistScreen';
 import StorefrontScreen from './src/screens/StorefrontScreen';
 import MyListingsScreen from './src/screens/MyListingsScreen';
@@ -49,6 +50,7 @@ function OnboardingNavigator() {
       <OnboardingStack.Screen name="SignIn" component={SignInScreen} />
       <OnboardingStack.Screen name="GuestMode" component={GuestModeScreen} />
       <OnboardingStack.Screen name="EmailVerify" component={EmailVerifyScreen} />
+      <OnboardingStack.Screen name="PhoneVerify" component={PhoneVerifyScreen} />
       <OnboardingStack.Screen name="LocationPerm" component={LocationPermScreen} />
       <OnboardingStack.Screen name="Legal" component={LegalScreen} />
     </OnboardingStack.Navigator>

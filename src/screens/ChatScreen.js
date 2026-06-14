@@ -4,6 +4,7 @@ import {
   StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp } from '../context/AppContext';
 import { markMessagesRead } from '../lib/db';
 import ChatMenuSheet from '../components/ChatMenuSheet';
@@ -11,6 +12,40 @@ import OfferModal from '../components/OfferModal';
 import MeetupModal from '../components/MeetupModal';
 import UserActionSheet from '../components/UserActionSheet';
 import colors from '../theme/colors';
+
+const MEETUP_SAFETY_KEY = 'proxie_meetup_safety_seen';
+
+const SAFETY_TIPS = [
+  { icon: 'people-outline', text: 'Meet in your building lobby or a public common area' },
+  { icon: 'eye-outline', text: 'Bring a friend or let someone know where you\'re going' },
+  { icon: 'cash-outline', text: 'Use cash or trusted payment apps — no wire transfers' },
+  { icon: 'warning-outline', text: 'Trust your gut. Cancel if anything feels off' },
+];
+
+function SafeMeetupBanner({ onDismiss }) {
+  return (
+    <View style={safetyStyles.banner}>
+      <View style={safetyStyles.header}>
+        <View style={safetyStyles.iconWrap}>
+          <Ionicons name="shield-checkmark-outline" size={20} color={colors.primary} />
+        </View>
+        <Text style={safetyStyles.title}>Safe Meetup Tips</Text>
+        <TouchableOpacity onPress={onDismiss} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Ionicons name="close" size={18} color={colors.textLight} />
+        </TouchableOpacity>
+      </View>
+      {SAFETY_TIPS.map((tip) => (
+        <View key={tip.icon} style={safetyStyles.tipRow}>
+          <Ionicons name={tip.icon} size={15} color={colors.primary} style={safetyStyles.tipIcon} />
+          <Text style={safetyStyles.tipText}>{tip.text}</Text>
+        </View>
+      ))}
+      <TouchableOpacity style={safetyStyles.dismissBtn} onPress={onDismiss} activeOpacity={0.8}>
+        <Text style={safetyStyles.dismissText}>Got it</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
 
 export default function ChatScreen({ navigation, route }) {
   const { thread, item, prefill } = route.params;
@@ -20,6 +55,7 @@ export default function ChatScreen({ navigation, route }) {
   const [offerOpen, setOfferOpen] = useState(false);
   const [meetupOpen, setMeetupOpen] = useState(false);
   const [sellerSheetOpen, setSellerSheetOpen] = useState(false);
+  const [showSafetyBanner, setShowSafetyBanner] = useState(false);
   const flatRef = useRef(null);
 
   // Clear unread count when conversation opens (local state + DB)
@@ -29,6 +65,18 @@ export default function ChatScreen({ navigation, route }) {
       markMessagesRead(thread.dbConversationId, user.id).catch(() => {});
     }
   }, [thread.id]);
+
+  // Show safe meetup banner once per install
+  useEffect(() => {
+    AsyncStorage.getItem(MEETUP_SAFETY_KEY).then((val) => {
+      if (!val) setShowSafetyBanner(true);
+    }).catch(() => {});
+  }, []);
+
+  const dismissSafetyBanner = () => {
+    setShowSafetyBanner(false);
+    AsyncStorage.setItem(MEETUP_SAFETY_KEY, 'seen').catch(() => {});
+  };
 
   // Always read latest thread from context
   const currentThread = messages.find((m) => m.id === thread.id) || thread;
@@ -176,15 +224,20 @@ export default function ChatScreen({ navigation, route }) {
           renderItem={renderMessage}
           contentContainerStyle={styles.messageList}
           onContentSizeChange={() => flatRef.current?.scrollToEnd({ animated: false })}
-          ListHeaderComponent={() =>
-            currentThread.messages.length === 0 ? (
-              <View style={styles.emptyChat}>
-                <Ionicons name="chatbubble-outline" size={48} color={colors.primaryLight} />
-                <Text style={styles.emptyChatText}>Start the conversation!</Text>
-                <Text style={styles.emptyChatSub}>Use quick replies below or type a message.</Text>
-              </View>
-            ) : null
-          }
+          ListHeaderComponent={() => (
+            <>
+              {showSafetyBanner && (
+                <SafeMeetupBanner onDismiss={dismissSafetyBanner} />
+              )}
+              {currentThread.messages.length === 0 && !showSafetyBanner ? (
+                <View style={styles.emptyChat}>
+                  <Ionicons name="chatbubble-outline" size={48} color={colors.primaryLight} />
+                  <Text style={styles.emptyChatText}>Start the conversation!</Text>
+                  <Text style={styles.emptyChatSub}>Use quick replies below or type a message.</Text>
+                </View>
+              ) : null}
+            </>
+          )}
         />
 
         {/* Quick replies */}
@@ -566,4 +619,42 @@ const styles = StyleSheet.create({
   },
   emptyChatText: { fontSize: 16, fontWeight: '600', color: colors.text },
   emptyChatSub: { fontSize: 13, color: colors.textSecondary, textAlign: 'center' },
+});
+
+const safetyStyles = StyleSheet.create({
+  banner: {
+    margin: 16,
+    backgroundColor: colors.cardBackground,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.primary + '30',
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  header: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14,
+  },
+  iconWrap: {
+    width: 32, height: 32, borderRadius: 10,
+    backgroundColor: colors.primary + '15',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  title: { flex: 1, fontSize: 14, fontWeight: '700', color: colors.text },
+  tipRow: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 10,
+  },
+  tipIcon: { marginTop: 1, flexShrink: 0 },
+  tipText: { flex: 1, fontSize: 13, color: colors.textSecondary, lineHeight: 19 },
+  dismissBtn: {
+    marginTop: 6,
+    backgroundColor: colors.primary,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  dismissText: { fontSize: 13, fontWeight: '700', color: '#fff' },
 });

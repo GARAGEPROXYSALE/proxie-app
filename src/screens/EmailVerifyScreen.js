@@ -25,7 +25,7 @@ export default function EmailVerifyScreen({ navigation, route }) {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         clearInterval(interval);
-        navigation.navigate('LocationPerm', { userType, userData });
+        navigation.navigate('PhoneVerify', { userType, userData });
       }
     }, 3000);
     return () => clearInterval(interval);
@@ -56,7 +56,7 @@ export default function EmailVerifyScreen({ navigation, route }) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
-        navigation.navigate('LocationPerm', { userType, userData });
+        navigation.navigate('PhoneVerify', { userType, userData });
       } else {
         setError("We haven't received your confirmation yet — check your inbox (and spam folder).");
       }
