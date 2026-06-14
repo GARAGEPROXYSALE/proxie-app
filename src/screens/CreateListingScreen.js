@@ -70,7 +70,8 @@ export default function CreateListingScreen({ navigation }) {
       selectionLimit: 6 - photos.length,
     });
     if (!result.canceled && result.assets) {
-      setPhotos((prev) => [...prev, ...result.assets.map((a) => a.uri)].slice(0, 6));
+      // Store full asset objects so uploadListingPhoto can use .file on web
+      setPhotos((prev) => [...prev, ...result.assets].slice(0, 6));
     }
   };
 
@@ -83,7 +84,7 @@ export default function CreateListingScreen({ navigation }) {
     }
     const result = await ImagePicker.launchCameraAsync({ quality: 0.8 });
     if (!result.canceled && result.assets?.[0]) {
-      setPhotos((prev) => [...prev, result.assets[0].uri].slice(0, 6));
+      setPhotos((prev) => [...prev, result.assets[0]].slice(0, 6));
     }
   };
 
@@ -125,10 +126,10 @@ export default function CreateListingScreen({ navigation }) {
       let uploadedUrls = [];
       if (session?.user && photos.length > 0) {
         uploadedUrls = await Promise.all(
-          photos.map((uri) => uploadListingPhoto(uri, session.user.id))
+          photos.map((asset) => uploadListingPhoto(asset, session.user.id))
         );
       } else {
-        uploadedUrls = photos;
+        uploadedUrls = photos.map((a) => (typeof a === 'string' ? a : a.uri));
       }
 
       await addListing({
@@ -173,9 +174,9 @@ export default function CreateListingScreen({ navigation }) {
           {/* Photo section */}
           <View style={styles.photoSection}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoScroll} contentContainerStyle={styles.photoScrollContent}>
-              {photos.map((uri, i) => (
+              {photos.map((asset, i) => (
                 <View key={i} style={styles.photoThumb}>
-                  <Image source={{ uri }} style={styles.thumbImg} resizeMode="cover" />
+                  <Image source={{ uri: typeof asset === 'string' ? asset : asset.uri }} style={styles.thumbImg} resizeMode="cover" />
                   <TouchableOpacity style={styles.removePhoto} onPress={() => removePhoto(i)}>
                     <Ionicons name="close-circle" size={22} color="#fff" />
                   </TouchableOpacity>

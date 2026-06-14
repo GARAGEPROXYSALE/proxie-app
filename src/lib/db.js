@@ -114,9 +114,20 @@ function validateImageBlob(blob, maxBytes) {
   }
 }
 
-export async function uploadListingPhoto(uri, userId) {
-  const response = await fetch(uri);
-  const blob = await response.blob();
+// asset can be a plain URI string or an ImagePicker asset { uri, file, mimeType, ... }
+// On web, expo-image-picker provides asset.file (a File object) — use it directly to
+// avoid blob-URL fetch failures in some browsers. Fall back to fetch(uri) on native.
+export async function uploadListingPhoto(asset, userId) {
+  let blob;
+  const uri = typeof asset === 'string' ? asset : asset.uri;
+  const file = typeof asset === 'object' ? asset.file : null;
+
+  if (file) {
+    blob = file;
+  } else {
+    const response = await fetch(uri);
+    blob = await response.blob();
+  }
 
   validateImageBlob(blob, MAX_PHOTO_BYTES);
 
