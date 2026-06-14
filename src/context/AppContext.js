@@ -199,13 +199,13 @@ export function AppProvider({ children }) {
       setUser((prev) => ({
         ...prev,
         id: profile.id,
-        name: profile.display_name || prev.name,
-        status: profile.status || prev.status,
-        bio: profile.bio || prev.bio,
-        building: profile.building || prev.building,
+        name: profile.display_name ?? prev.name,
+        status: profile.status ?? prev.status,
+        bio: profile.bio ?? '',
+        building: profile.building ?? null,
         rating: profile.rating ?? prev.rating,
         sales: profile.sales ?? prev.sales,
-        avatar_url: profile.avatar_url || null,
+        avatar_url: profile.avatar_url ?? null,
       }));
       setIsAuthenticated(true);
 
