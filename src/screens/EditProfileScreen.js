@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  SafeAreaView, ScrollView, KeyboardAvoidingView, Platform,
+  SafeAreaView, ScrollView, KeyboardAvoidingView, Platform, Image, ActivityIndicator,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { supabase } from '../lib/supabase';
+import { uploadAvatar } from '../lib/db';
 import BuildingPicker from '../components/BuildingPicker';
 import colors from '../theme/colors';
 
@@ -16,11 +18,41 @@ export default function EditProfileScreen({ navigation }) {
   const [headline, setHeadline] = useState(user.status || '');
   const [bio, setBio] = useState(user.bio || '');
   const [building, setBuilding] = useState(user.building || null);
+  const [avatarUri, setAvatarUri] = useState(user.avatar_url || null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [saveMsg, setSaveMsg] = useState(''); // '' | 'saved' | error string
+  const [saveMsg, setSaveMsg] = useState('');
 
   const nameOk = name.trim().length >= 2;
-  const canSave = nameOk && !loading;
+  const canSave = nameOk && !loading && !avatarUploading;
+
+  const handlePickAvatar = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') { setSaveMsg('Photo access is needed to set a profile picture.'); return; }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+
+    setAvatarUploading(true);
+    setSaveMsg('');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { setSaveMsg('Not signed in.'); return; }
+      const asset = result.assets[0];
+      const url = await uploadAvatar(asset.file ?? asset.uri, session.user.id);
+      setAvatarUri(url);
+      setUser((prev) => ({ ...prev, avatar_url: url }));
+      await supabase.from('profiles').upsert({ id: session.user.id, avatar_url: url }, { onConflict: 'id' });
+    } catch (e) {
+      setSaveMsg('Photo upload failed. Try a smaller image.');
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
 
   const handleSave = async () => {
     setSaveMsg('');
@@ -103,6 +135,23 @@ export default function EditProfileScreen({ navigation }) {
                 <Text style={styles.msgText}>{saveMsg}</Text>
               </View>
             ) : null}
+
+            {/* Avatar */}
+            <TouchableOpacity style={styles.avatarWrap} onPress={handlePickAvatar} activeOpacity={0.8}>
+              {avatarUri ? (
+                <Image source={{ uri: avatarUri }} style={styles.avatar} />
+              ) : (
+                <View style={styles.avatarPlaceholder}>
+                  <Ionicons name="person" size={36} color={colors.primaryLight} />
+                </View>
+              )}
+              <View style={styles.avatarBadge}>
+                {avatarUploading
+                  ? <ActivityIndicator size="small" color="#fff" />
+                  : <Ionicons name="camera" size={14} color="#fff" />}
+              </View>
+            </TouchableOpacity>
+            <Text style={styles.avatarHint}>Tap to change photo</Text>
 
             {/* Display Name */}
             <View style={styles.field}>
@@ -252,6 +301,23 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.danger + '30',
   },
   msgText: { flex: 1, fontSize: 13, color: colors.danger, fontWeight: '500', lineHeight: 18 },
+
+  avatarWrap: { alignSelf: 'center', marginBottom: 6, position: 'relative' },
+  avatar: { width: 88, height: 88, borderRadius: 44, backgroundColor: colors.border },
+  avatarPlaceholder: {
+    width: 88, height: 88, borderRadius: 44,
+    backgroundColor: colors.cardBackground,
+    borderWidth: 2, borderColor: colors.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  avatarBadge: {
+    position: 'absolute', bottom: 0, right: 0,
+    width: 28, height: 28, borderRadius: 14,
+    backgroundColor: colors.primary,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: colors.background,
+  },
+  avatarHint: { textAlign: 'center', fontSize: 12, color: colors.textLight, marginBottom: 20 },
 
   field: {
     marginBottom: 20,

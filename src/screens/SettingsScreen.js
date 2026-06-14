@@ -6,6 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
+import { supabase } from '../lib/supabase';
 import BuildingPicker from '../components/BuildingPicker';
 import colors from '../theme/colors';
 
@@ -78,6 +79,41 @@ function HostSettings({ navigation, user, setUser, isLive, setIsLive, signOut })
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Sign Out', style: 'destructive', onPress: signOut },
+      ]
+    );
+  };
+
+  const handleDeleteAccount = async () => {
+    Alert.alert(
+      'Delete Account',
+      'This permanently deletes your account, listings, and all data. It cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete My Account',
+          style: 'destructive',
+          onPress: () =>
+            Alert.alert('Are you absolutely sure?', 'Your account will be gone forever.', [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Yes, Delete',
+                style: 'destructive',
+                onPress: async () => {
+                  try {
+                    const { data: { session } } = await supabase.auth.getSession();
+                    if (session?.user) {
+                      await supabase.from('listings').delete().eq('seller_id', session.user.id);
+                      await supabase.from('profiles').delete().eq('id', session.user.id);
+                      await supabase.auth.signOut();
+                    }
+                    signOut();
+                  } catch {
+                    Alert.alert('Error', 'Could not delete account. Please contact support.');
+                  }
+                },
+              },
+            ]),
+        },
       ]
     );
   };
@@ -222,6 +258,12 @@ function HostSettings({ navigation, user, setUser, isLive, setIsLive, signOut })
         <Text style={styles.signOutText}>Sign Out</Text>
       </TouchableOpacity>
 
+      {/* Delete account */}
+      <TouchableOpacity style={styles.deleteAccountBtn} onPress={handleDeleteAccount}>
+        <Ionicons name="trash-outline" size={16} color={colors.textLight} />
+        <Text style={styles.deleteAccountText}>Delete Account</Text>
+      </TouchableOpacity>
+
     </ScrollView>
   );
 }
@@ -341,6 +383,45 @@ function GuestSettings({ navigation, user, setUser, signOut }) {
       <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut}>
         <Ionicons name="log-out-outline" size={18} color={colors.danger} />
         <Text style={styles.signOutText}>Sign Out</Text>
+      </TouchableOpacity>
+
+      {/* Delete account */}
+      <TouchableOpacity style={styles.deleteAccountBtn} onPress={async () => {
+        Alert.alert(
+          'Delete Account',
+          'This permanently deletes your account and all data. It cannot be undone.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Delete My Account',
+              style: 'destructive',
+              onPress: () =>
+                Alert.alert('Are you absolutely sure?', 'Your account will be gone forever.', [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Yes, Delete',
+                    style: 'destructive',
+                    onPress: async () => {
+                      try {
+                        const { data: { session } } = await supabase.auth.getSession();
+                        if (session?.user) {
+                          await supabase.from('listings').delete().eq('seller_id', session.user.id);
+                          await supabase.from('profiles').delete().eq('id', session.user.id);
+                          await supabase.auth.signOut();
+                        }
+                        signOut();
+                      } catch {
+                        Alert.alert('Error', 'Could not delete account. Please contact support.');
+                      }
+                    },
+                  },
+                ]),
+            },
+          ]
+        );
+      }}>
+        <Ionicons name="trash-outline" size={16} color={colors.textLight} />
+        <Text style={styles.deleteAccountText}>Delete Account</Text>
       </TouchableOpacity>
 
       <View style={{ height: 40 }} />
@@ -537,5 +618,22 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: colors.danger,
+  },
+
+  // Delete account
+  deleteAccountBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginHorizontal: 16,
+    marginTop: 4,
+    marginBottom: 8,
+    paddingVertical: 10,
+  },
+  deleteAccountText: {
+    fontSize: 13,
+    color: colors.textLight,
+    fontWeight: '500',
   },
 });

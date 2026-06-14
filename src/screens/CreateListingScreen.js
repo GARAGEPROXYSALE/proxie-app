@@ -45,9 +45,11 @@ export default function CreateListingScreen({ navigation }) {
 
   const isTickets = category === 'Tickets';
 
-  const isValid = isTickets
-    ? eventName.trim() && price.trim() && eventDate.trim() && venue.trim() && numTickets
-    : title.trim() && price.trim() && description.trim() && category;
+  const isValid = photos.length > 0 && (
+    isTickets
+      ? eventName.trim() && price.trim() && eventDate.trim() && venue.trim() && numTickets
+      : title.trim() && price.trim() && description.trim() && category
+  );
 
   useEffect(() => {
     getUserLocation().then((loc) => setGpsCoords(loc)).catch(() => {});
@@ -117,6 +119,7 @@ export default function CreateListingScreen({ navigation }) {
       cleanDesc = sanitizeText(description, 500);
     }
 
+    if (photos.length === 0) { setPublishError('At least one photo is required.'); return; }
     const errors = validateListingPayload({ title: cleanTitle, price: cleanPrice, description: cleanDesc, category });
     if (errors.length > 0) { setPublishError(errors[0]); return; }
 
@@ -195,9 +198,11 @@ export default function CreateListingScreen({ navigation }) {
                 </View>
               )}
             </ScrollView>
-            {photos.length === 0 && (
-              <Text style={styles.photoHint}>Add up to 6 photos — good photos get more buyers</Text>
-            )}
+            {photos.length === 0 ? (
+              <Text style={styles.photoHintRequired}>
+                <Ionicons name="camera-outline" size={13} /> Photo required · Good photos get more buyers
+              </Text>
+            ) : null}
           </View>
 
           <View style={styles.form}>
@@ -489,6 +494,7 @@ const styles = StyleSheet.create({
   },
   photoBtnText: { fontSize: 11, fontWeight: '600', color: colors.primary },
   photoHint: { fontSize: 12, color: colors.textLight, textAlign: 'center', paddingBottom: 14, paddingHorizontal: 16 },
+  photoHintRequired: { fontSize: 12, color: colors.warning, textAlign: 'center', paddingBottom: 14, paddingHorizontal: 16, fontWeight: '500' },
 
   form: { paddingHorizontal: 16 },
   gpsRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16 },

@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions, RefreshControl, Linking, Platform,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions, RefreshControl, Linking, Platform, TextInput,
 } from 'react-native';
 import Slider from '@react-native-community/slider';
 import * as Haptics from 'expo-haptics';
@@ -16,8 +16,10 @@ import { getUserLocation } from '../lib/location';
 import colors from '../theme/colors';
 import { categories } from '../data/mockData';
 
-// Height of the single category filter row + top safe area
-const FILTERS_HEIGHT = 44;
+// Search row + category chip row heights
+const SEARCH_ROW_H = 50;
+const CHIPS_ROW_H = 44;
+const FILTERS_HEIGHT = SEARCH_ROW_H + CHIPS_ROW_H;
 
 export default function NearbyScreen({ navigation }) {
   const {
@@ -31,6 +33,7 @@ export default function NearbyScreen({ navigation }) {
 
   const [refreshing, setRefreshing] = useState(false);
   const [locationDenied, setLocationDenied] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [locationStaleNotice, setLocationStaleNotice] = useState(false);
   const staleNoticeTimer = useRef(null);
 
@@ -86,6 +89,17 @@ export default function NearbyScreen({ navigation }) {
   }, [proximityMiles]);
 
   const lastSnapIndex = useRef(snapIndex);
+
+  const displayedListings = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return filteredListings;
+    return filteredListings.filter(
+      (l) =>
+        l.title?.toLowerCase().includes(q) ||
+        l.description?.toLowerCase().includes(q) ||
+        l.category?.toLowerCase().includes(q)
+    );
+  }, [filteredListings, searchQuery]);
 
   const handleSliderChange = useCallback((value) => {
     const index = Math.round(value);
@@ -194,7 +208,9 @@ export default function NearbyScreen({ navigation }) {
         {/* Items grid header */}
         <View style={styles.listHeader}>
           <Text style={styles.listTitle}>Items Near You</Text>
-          <Text style={styles.listCount}>{filteredListings.length} results</Text>
+          <Text style={styles.listCount}>
+            {searchQuery.trim() ? `${displayedListings.length} of ${filteredListings.length}` : `${filteredListings.length} results`}
+          </Text>
         </View>
 
         {/* Thin feed nudge */}
@@ -212,19 +228,32 @@ export default function NearbyScreen({ navigation }) {
           </TouchableOpacity>
         )}
 
-        {filteredListings.length === 0 ? (
+        {displayedListings.length === 0 ? (
           <View style={styles.emptyState}>
-            <Ionicons name="radio-outline" size={56} color={colors.primaryLight} />
-            <Text style={styles.emptyTitle}>No items in range</Text>
-            <Text style={styles.emptySub}>
-              {isHost
-                ? 'No one is selling nearby yet. Expand your radius or check back soon.'
-                : 'No sales nearby. Try expanding your radius or check back later.'}
+            <Ionicons
+              name={searchQuery.trim() ? 'search-outline' : 'radio-outline'}
+              size={56}
+              color={colors.primaryLight}
+            />
+            <Text style={styles.emptyTitle}>
+              {searchQuery.trim() ? `No results for "${searchQuery.trim()}"` : 'No items in range'}
             </Text>
+            <Text style={styles.emptySub}>
+              {searchQuery.trim()
+                ? 'Try a different keyword or clear the search.'
+                : isHost
+                  ? 'No one is selling nearby yet. Expand your radius or check back soon.'
+                  : 'No sales nearby. Try expanding your radius or check back later.'}
+            </Text>
+            {searchQuery.trim() ? (
+              <TouchableOpacity style={styles.clearSearchBtn} onPress={() => setSearchQuery('')}>
+                <Text style={styles.clearSearchBtnText}>Clear Search</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         ) : (
           <MasonryGrid
-            items={filteredListings}
+            items={displayedListings}
             onItemPress={(item) => navigation.navigate('ItemDetail', { item })}
           />
         )}
@@ -238,8 +267,11 @@ export default function NearbyScreen({ navigation }) {
           onPress={() => { Linking.openSettings(); setLocationDenied(false); }}
           activeOpacity={0.8}
         >
-          <Ionicons name="location-outline" size={14} color={colors.warning} />
-          <Text style={styles.locationBannerText}>Enable location for real distances</Text>
+          <Ionicons name="location-outline" size={16} color={colors.warning} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.locationBannerTitle}>Location is off — listings won't show distances</Text>
+            <Text style={styles.locationBannerSub}>Proxie is distance-based. Tap to enable GPS.</Text>
+          </View>
           <Ionicons name="chevron-forward" size={14} color={colors.warning} />
         </TouchableOpacity>
       )}
@@ -249,6 +281,30 @@ export default function NearbyScreen({ navigation }) {
         style={[styles.filtersWrapper, { top: filtersTop }]}
         pointerEvents="box-none"
       >
+        {/* Search bar row */}
+        <View style={styles.searchRow} pointerEvents="box-none">
+          <View style={styles.searchInputWrap} pointerEvents="auto">
+            <Ionicons name="search-outline" size={16} color={colors.textLight} style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search items..."
+              placeholderTextColor={colors.textLight}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              returnKeyType="search"
+              clearButtonMode="while-editing"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="close-circle" size={16} color={colors.textLight} />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+
+        {/* Category chips */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -323,13 +379,13 @@ const styles = StyleSheet.create({
     right: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
     backgroundColor: colors.warning + '18',
     borderWidth: 1,
     borderColor: colors.warning + '40',
     borderRadius: 10,
     paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingVertical: 10,
     zIndex: 20,
   },
   locationBannerText: {
@@ -337,6 +393,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.warning,
     fontWeight: '500',
+  },
+  locationBannerTitle: {
+    fontSize: 12,
+    color: colors.warning,
+    fontWeight: '700',
+    lineHeight: 16,
+  },
+  locationBannerSub: {
+    fontSize: 11,
+    color: colors.warning,
+    opacity: 0.8,
+    marginTop: 1,
   },
 
   // ── Filter bar (absolutely positioned, always on top) ──
@@ -348,6 +416,44 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
     zIndex: 10,
   },
+
+  // ── Search bar ─────────────────────────────────────────
+  searchRow: {
+    height: SEARCH_ROW_H,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 4,
+    justifyContent: 'center',
+  },
+  searchInputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.cardBackground,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 12,
+    height: 38,
+    gap: 8,
+  },
+  searchIcon: { flexShrink: 0 },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.text,
+    paddingVertical: 0,
+  },
+
+  // ── Empty search CTA ───────────────────────────────────
+  clearSearchBtn: {
+    marginTop: 16,
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  clearSearchBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+
   filterRow: {
     flexDirection: 'row',
     alignItems: 'center',
