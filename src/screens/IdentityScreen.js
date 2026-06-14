@@ -35,39 +35,40 @@ function SectionCard({ title, icon, onPress, children, badge }) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Swipeable stale check-in card — reveals Still Available + Mark Sold
+// Shared swipe action buttons — used by both card types
+function SwipeActions({ onStillAvailable, onMarkSold }) {
+  return (
+    <View style={styles.swipeActionsWrap}>
+      <TouchableOpacity style={styles.swipeGreenBtn} onPress={onStillAvailable} activeOpacity={0.88}>
+        <Ionicons name="checkmark-circle" size={26} color="#fff" />
+        <Text style={styles.swipeBtnLabel}>Available</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.swipeRedBtn} onPress={onMarkSold} activeOpacity={0.88}>
+        <Ionicons name="pricetag" size={24} color="#fff" />
+        <Text style={styles.swipeBtnLabel}>Sold</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Swipeable stale check-in card — reveals Available + Sold
 // ─────────────────────────────────────────────────────────────
 
 function SwipeableStaleCard({ listing, onMarkSold, onStillAvailable, onPress }) {
   const swipeRef = useRef(null);
 
-  const renderRightActions = () => (
-    <View style={styles.listingSwipeActions}>
-      <TouchableOpacity
-        style={styles.swipeStillAvail}
-        onPress={() => { swipeRef.current?.close(); onStillAvailable(listing.id); }}
-        activeOpacity={0.85}
-      >
-        <Ionicons name="checkmark-circle-outline" size={22} color="#fff" />
-        <Text style={styles.swipeActionText}>Still{'\n'}Available</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={styles.swipeMarkSold}
-        onPress={() => { swipeRef.current?.close(); onMarkSold(listing); }}
-        activeOpacity={0.85}
-      >
-        <Ionicons name="bag-check-outline" size={22} color="#fff" />
-        <Text style={styles.swipeActionText}>Mark{'\n'}Sold</Text>
-      </TouchableOpacity>
-    </View>
-  );
-
   return (
     <Swipeable
       ref={swipeRef}
-      renderRightActions={renderRightActions}
+      renderRightActions={() => (
+        <SwipeActions
+          onStillAvailable={() => { swipeRef.current?.close(); onStillAvailable(listing.id); }}
+          onMarkSold={() => { swipeRef.current?.close(); onMarkSold(listing); }}
+        />
+      )}
       friction={2}
-      rightThreshold={50}
+      rightThreshold={40}
       overshootRight={false}
     >
       <TouchableOpacity style={styles.staleCard} onPress={onPress} activeOpacity={0.85}>
@@ -84,39 +85,23 @@ function SwipeableStaleCard({ listing, onMarkSold, onStillAvailable, onPress }) 
 }
 
 // ─────────────────────────────────────────────────────────────
-// Swipeable listing row — reveals Still Available + Mark Sold
+// Swipeable listing row — reveals Available + Sold
 // ─────────────────────────────────────────────────────────────
 
 function SwipeableListingRow({ listing, onMarkSold, onStillAvailable, onPress }) {
   const swipeRef = useRef(null);
 
-  const renderRightActions = () => (
-    <View style={styles.listingSwipeActions}>
-      <TouchableOpacity
-        style={styles.swipeStillAvail}
-        onPress={() => { swipeRef.current?.close(); onStillAvailable(listing.id); }}
-        activeOpacity={0.85}
-      >
-        <Ionicons name="checkmark-circle-outline" size={22} color="#fff" />
-        <Text style={styles.swipeActionText}>Still{'\n'}Available</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={styles.swipeMarkSold}
-        onPress={() => { swipeRef.current?.close(); onMarkSold(listing); }}
-        activeOpacity={0.85}
-      >
-        <Ionicons name="bag-check-outline" size={22} color="#fff" />
-        <Text style={styles.swipeActionText}>Mark{'\n'}Sold</Text>
-      </TouchableOpacity>
-    </View>
-  );
-
   return (
     <Swipeable
       ref={swipeRef}
-      renderRightActions={renderRightActions}
+      renderRightActions={() => (
+        <SwipeActions
+          onStillAvailable={() => { swipeRef.current?.close(); onStillAvailable(listing.id); }}
+          onMarkSold={() => { swipeRef.current?.close(); onMarkSold(listing); }}
+        />
+      )}
       friction={2}
-      rightThreshold={50}
+      rightThreshold={40}
       overshootRight={false}
     >
       <TouchableOpacity style={styles.myListingRow} onPress={onPress} activeOpacity={0.85}>
@@ -1218,33 +1203,35 @@ const styles = StyleSheet.create({
   },
 
   // Swipeable listing row actions
-  listingSwipeActions: {
+  swipeActionsWrap: {
     flexDirection: 'row',
     alignSelf: 'stretch',
-    marginLeft: 10,
+    marginLeft: 8,
+    gap: 1,
   },
-  swipeStillAvail: {
-    width: 92,
+  swipeGreenBtn: {
+    width: 88,
     backgroundColor: '#34C759',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 5,
+    paddingVertical: 10,
   },
-  swipeMarkSold: {
-    width: 92,
+  swipeRedBtn: {
+    width: 88,
     backgroundColor: '#FF3B30',
     borderTopRightRadius: 14,
     borderBottomRightRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
     gap: 5,
+    paddingVertical: 10,
     overflow: 'hidden',
   },
-  swipeActionText: {
+  swipeBtnLabel: {
     color: '#fff',
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
-    textAlign: 'center',
-    letterSpacing: 0.1,
+    letterSpacing: -0.1,
   },
 });
