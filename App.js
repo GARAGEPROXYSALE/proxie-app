@@ -40,7 +40,7 @@ const NearbyStack = createStackNavigator();
 // ── Onboarding navigator (pre-auth) ──────────────────────────
 function OnboardingNavigator() {
   return (
-    <OnboardingStack.Navigator screenOptions={{ headerShown: false }}>
+    <OnboardingStack.Navigator screenOptions={{ headerShown: false, cardStyle: { flex: 1 } }}>
       <OnboardingStack.Screen name="Welcome" component={OnboardingScreen} />
       <OnboardingStack.Screen name="SignUp" component={SignUpScreen} />
       <OnboardingStack.Screen name="SignIn" component={SignInScreen} />
@@ -54,7 +54,7 @@ function OnboardingNavigator() {
 // ── Main tab navigators (post-auth) ──────────────────────────
 function NearbyNavigator() {
   return (
-    <NearbyStack.Navigator screenOptions={{ headerShown: false }}>
+    <NearbyStack.Navigator screenOptions={{ headerShown: false, cardStyle: { flex: 1 } }}>
       <NearbyStack.Screen name="NearbyHome" component={NearbyScreen} />
       <NearbyStack.Screen name="ItemDetail" component={ItemDetailScreen} />
       <NearbyStack.Screen name="Chat" component={ChatScreen} />
@@ -75,7 +75,7 @@ function NearbyNavigator() {
 
 function HomeNavigator() {
   return (
-    <HomeStack.Navigator screenOptions={{ headerShown: false }}>
+    <HomeStack.Navigator screenOptions={{ headerShown: false, cardStyle: { flex: 1 } }}>
       <HomeStack.Screen name="HomeScreen" component={IdentityScreen} />
       <HomeStack.Screen name="Settings" component={SettingsScreen} />
       <HomeStack.Screen

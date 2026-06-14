@@ -31,13 +31,15 @@ export default function EditProfileScreen({ navigation }) {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { setSaveMsg('Not signed in. Please sign in to update your profile.'); return; }
 
-      const { error } = await supabase.from('profiles').upsert({
-        id: session.user.id,
-        display_name: name.trim(),
-        status: headline.trim(),
-        bio: bio.trim(),
-        building: building || null,
-      });
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          display_name: name.trim(),
+          status: headline.trim(),
+          bio: bio.trim(),
+          building: building || null,
+        })
+        .eq('id', session.user.id);
 
       if (error) { setSaveMsg(error.message); return; }
 

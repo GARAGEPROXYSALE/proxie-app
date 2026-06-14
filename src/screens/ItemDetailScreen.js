@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, Image, ScrollView, TouchableOpacity, Pressable, StyleSheet,
-  SafeAreaView, Dimensions, Alert, Animated,
+  SafeAreaView, Dimensions, Alert, Animated, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
@@ -77,7 +77,7 @@ export default function ItemDetailScreen({ navigation, route }) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.scroll} contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
         {/* Hero image */}
         <Image
           source={{ uri: item.photos[0] }}
@@ -272,8 +272,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   image: {
-    width,
-    height: width * 0.75,
+    width: '100%',
+    height: Platform.OS === 'web' ? Math.min(width * 0.75, 340) : width * 0.75,
     backgroundColor: colors.border,
   },
   content: {
