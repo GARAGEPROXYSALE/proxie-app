@@ -128,8 +128,15 @@ export function AppProvider({ children }) {
     // Load real listings from Supabase (all users including guests see these)
     fetchListings()
       .then((rows) => {
-        if (rows.length > 0) setListings(rows);
-        // else keep mockListings as fallback while DB is empty
+        if (rows.length >= 10) {
+          // Enough real content — drop mock data entirely
+          setListings(rows);
+        } else if (rows.length > 0) {
+          // Merge real listings at the top, keep mock data to fill the feed
+          const realIds = new Set(rows.map((r) => r.id));
+          setListings([...rows, ...mockListings.filter((m) => !realIds.has(m.id))]);
+        }
+        // else keep mockListings as-is
       })
       .catch(() => {});
 
