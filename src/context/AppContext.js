@@ -168,11 +168,31 @@ export function AppProvider({ children }) {
   }, []);
 
   const loadUserSession = useCallback(async (authUser) => {
-    const { data: profile } = await supabase
+    let { data: profile } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', authUser.id)
       .single();
+
+    // No profile row yet — user signed up but DB trigger / manual insert didn't run.
+    // Create it now from auth metadata so the user is immediately functional.
+    if (!profile) {
+      const meta = authUser.user_metadata || {};
+      await supabase.from('profiles').upsert({
+        id: authUser.id,
+        display_name: meta.display_name || authUser.email?.split('@')[0] || 'Proxie User',
+        status: meta.status || '',
+        bio: meta.bio || '',
+      }, { onConflict: 'id' }).catch(() => {});
+
+      // Re-fetch so the rest of the function has a real object
+      const { data: created } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authUser.id)
+        .single();
+      profile = created;
+    }
 
     if (profile) {
       setUserType('host');

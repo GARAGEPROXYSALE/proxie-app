@@ -43,6 +43,18 @@ export default function SignUpScreen({ navigation, route }) {
       });
       if (authError) { setError(authError.message); return; }
 
+      // Write profile row now. If email confirmation is disabled this works immediately;
+      // if it's enabled the session is null and this will fail silently — loadUserSession
+      // will create the row on first login after confirmation instead.
+      if (data.user) {
+        await supabase.from('profiles').upsert({
+          id: data.user.id,
+          display_name: name.trim(),
+          status: headline.trim() || 'Garage Sale Host',
+          bio: bio.trim(),
+        }, { onConflict: 'id' }).catch(() => {});
+      }
+
       navigation.navigate('LocationPerm', {
         userType: 'host',
         userData: {
