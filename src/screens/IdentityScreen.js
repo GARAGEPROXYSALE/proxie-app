@@ -189,17 +189,17 @@ function HostView({ navigation, user, listings, messages, onScreenScroll, openMa
           </TouchableOpacity>
         </View>
 
-        {/* Stats Row */}
+        {/* Stats Row — tappable to jump to tab */}
         <View style={styles.statsRow}>
-          <View style={styles.stat}>
-            <Text style={styles.statNum}>{activeListings.length}</Text>
-            <Text style={styles.statLabel}>Active</Text>
-          </View>
+          <TouchableOpacity style={styles.stat} onPress={() => setListingsTab('active')} activeOpacity={0.7}>
+            <Text style={[styles.statNum, listingsTab === 'active' && styles.statNumActive]}>{activeListings.length}</Text>
+            <Text style={[styles.statLabel, listingsTab === 'active' && styles.statLabelActive]}>Active</Text>
+          </TouchableOpacity>
           <View style={styles.statDivider} />
-          <View style={styles.stat}>
-            <Text style={styles.statNum}>{soldListings.length + user.sales}</Text>
-            <Text style={styles.statLabel}>Sold</Text>
-          </View>
+          <TouchableOpacity style={styles.stat} onPress={() => setListingsTab('sold')} activeOpacity={0.7}>
+            <Text style={[styles.statNum, listingsTab === 'sold' && styles.statNumActive]}>{soldListings.length + user.sales}</Text>
+            <Text style={[styles.statLabel, listingsTab === 'sold' && styles.statLabelActive]}>Sold</Text>
+          </TouchableOpacity>
           <View style={styles.statDivider} />
           <View style={styles.stat}>
             <Text style={[styles.statNum, { color: '#FFB800' }]}>
@@ -208,10 +208,10 @@ function HostView({ navigation, user, listings, messages, onScreenScroll, openMa
             <Text style={styles.statLabel}>Rating</Text>
           </View>
           <View style={styles.statDivider} />
-          <View style={styles.stat}>
-            <Text style={styles.statNum}>{savedItems.length}</Text>
-            <Text style={styles.statLabel}>Saved</Text>
-          </View>
+          <TouchableOpacity style={styles.stat} onPress={() => setListingsTab('saved')} activeOpacity={0.7}>
+            <Text style={[styles.statNum, listingsTab === 'saved' && styles.statNumActive]}>{savedItems.length}</Text>
+            <Text style={[styles.statLabel, listingsTab === 'saved' && styles.statLabelActive]}>Saved</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Stale listing check-ins */}
@@ -257,43 +257,36 @@ function HostView({ navigation, user, listings, messages, onScreenScroll, openMa
           </View>
         )}
 
-        {/* My Listings section with Active / Expired tab switcher */}
+        {/* My Listings section — Active / Sold / Saved tabs */}
         <View style={styles.myListingsSection}>
           <View style={styles.myListingsHeader}>
             <View style={styles.sectionTitleRow}>
               <Ionicons name="pricetag-outline" size={18} color={colors.textSecondary} />
-              <Text style={styles.sectionTitle}>My Listings</Text>
-              {activeListings.length > 0 && (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{activeListings.length}</Text>
-                </View>
-              )}
+              <Text style={styles.sectionTitle}>My Garage</Text>
             </View>
-            {/* Tab switcher */}
             <View style={styles.tabSwitcher}>
-              <TouchableOpacity
-                style={[styles.tabBtn, listingsTab === 'active' && styles.tabBtnActive]}
-                onPress={() => setListingsTab('active')}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.tabBtnText, listingsTab === 'active' && styles.tabBtnTextActive]}>Active</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.tabBtn, listingsTab === 'expired' && styles.tabBtnActive]}
-                onPress={() => setListingsTab('expired')}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.tabBtnText, listingsTab === 'expired' && styles.tabBtnTextActive]}>
-                  Expired{expiredListings.length > 0 ? ` (${expiredListings.length})` : ''}
-                </Text>
-              </TouchableOpacity>
+              {['active', 'sold', 'saved'].map((t) => (
+                <TouchableOpacity
+                  key={t}
+                  style={[styles.tabBtn, listingsTab === t && styles.tabBtnActive]}
+                  onPress={() => setListingsTab(t)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.tabBtnText, listingsTab === t && styles.tabBtnTextActive]}>
+                    {t.charAt(0).toUpperCase() + t.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
           </View>
 
-          {listingsTab === 'active' ? (
+          {/* ── Active ── */}
+          {listingsTab === 'active' && (
             activeListings.length === 0 ? (
               <View style={styles.emptySection}>
-                <Text style={styles.emptyText}>Tap + to add your first item</Text>
+                <Ionicons name="pricetag-outline" size={32} color={colors.primaryLight} />
+                <Text style={styles.emptyText}>No active listings</Text>
+                <Text style={styles.emptySubText}>Tap + to post your first item</Text>
               </View>
             ) : (
               <View style={styles.myListingsList}>
@@ -307,32 +300,61 @@ function HostView({ navigation, user, listings, messages, onScreenScroll, openMa
                 ))}
               </View>
             )
-          ) : (
-            expiredListings.length === 0 ? (
+          )}
+
+          {/* ── Sold ── */}
+          {listingsTab === 'sold' && (
+            soldListings.length === 0 ? (
               <View style={styles.emptySection}>
-                <Text style={styles.emptyText}>No expired listings</Text>
+                <Ionicons name="checkmark-circle-outline" size={32} color={colors.primaryLight} />
+                <Text style={styles.emptyText}>Nothing sold yet</Text>
+                <Text style={styles.emptySubText}>Mark items as sold from your active listings</Text>
               </View>
             ) : (
               <View style={styles.myListingsList}>
-                {expiredListings.map((l) => (
-                  <View key={l.id} style={styles.expiredListingRow}>
-                    <Image source={{ uri: l.photos[0] }} style={[styles.myListingImage, styles.expiredImage]} resizeMode="cover" />
+                {soldListings.map((l) => (
+                  <View key={l.id} style={styles.myListingRow}>
+                    <Image source={{ uri: l.photos?.[0] }} style={[styles.myListingImage, { opacity: 0.7 }]} resizeMode="cover" />
                     <View style={styles.myListingInfo}>
                       <Text style={styles.myListingTitle} numberOfLines={1}>{l.title}</Text>
                       <Text style={styles.myListingPrice}>${l.price}</Text>
-                      <View style={styles.expiredBadge}>
-                        <Text style={styles.expiredBadgeText}>Expired</Text>
+                      <View style={styles.soldBadge}>
+                        <Text style={styles.soldBadgeText}>{l.pickedUp ? 'Picked Up' : 'Sold'}</Text>
                       </View>
                     </View>
-                    <TouchableOpacity
-                      style={styles.repostBtn}
-                      onPress={() => repostListing(l.id)}
-                      activeOpacity={0.85}
-                    >
-                      <Ionicons name="refresh-outline" size={13} color="#fff" />
-                      <Text style={styles.repostBtnText}>Repost</Text>
-                    </TouchableOpacity>
                   </View>
+                ))}
+              </View>
+            )
+          )}
+
+          {/* ── Saved ── */}
+          {listingsTab === 'saved' && (
+            savedItems.length === 0 ? (
+              <View style={styles.emptySection}>
+                <Ionicons name="bookmark-outline" size={32} color={colors.primaryLight} />
+                <Text style={styles.emptyText}>No saved items</Text>
+                <Text style={styles.emptySubText}>Bookmark items while browsing to see them here</Text>
+              </View>
+            ) : (
+              <View style={styles.myListingsList}>
+                {savedItems.map((l) => (
+                  <TouchableOpacity
+                    key={l.id}
+                    style={styles.myListingRow}
+                    onPress={() => navigation.navigate('ItemDetail', { item: l })}
+                    activeOpacity={0.85}
+                  >
+                    <Image source={{ uri: l.photos?.[0] }} style={styles.myListingImage} resizeMode="cover" />
+                    <View style={styles.myListingInfo}>
+                      <Text style={styles.myListingTitle} numberOfLines={1}>{l.title}</Text>
+                      <Text style={styles.myListingPrice}>${l.price}</Text>
+                      <Text style={styles.myListingMeta}>
+                        {typeof l.distance === 'number' ? `${l.distance.toFixed(1)} mi away` : l.distance}
+                      </Text>
+                    </View>
+                    <Ionicons name="bookmark" size={16} color={colors.primary} />
+                  </TouchableOpacity>
                 ))}
               </View>
             )
@@ -1191,6 +1213,32 @@ const styles = StyleSheet.create({
   tipText: { flex: 1 },
   tipTitle: { fontSize: 14, fontWeight: '700', color: '#92630A', marginBottom: 3 },
   tipBody: { fontSize: 13, color: '#92630A', lineHeight: 18 },
+
+  // Stat tap-to-filter highlight
+  statNumActive: { color: colors.primary },
+  statLabelActive: { color: colors.primary, fontWeight: '700' },
+
+  // Sold badge
+  soldBadge: {
+    backgroundColor: colors.success + '20',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    alignSelf: 'flex-start',
+  },
+  soldBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.success,
+  },
+
+  // Empty state sub-text
+  emptySubText: {
+    fontSize: 11,
+    color: colors.textLight,
+    textAlign: 'center',
+    marginTop: 2,
+  },
 
   // Swipeable listing row actions
   listingSwipeActions: {
