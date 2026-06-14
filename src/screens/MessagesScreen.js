@@ -60,18 +60,38 @@ function ThreadRow({ item, onPress, navigation, listings }) {
   );
 }
 
-function SwipeableThreadRow({ item, onPress, onDelete, navigation, listings }) {
+function SwipeableThreadRow({ item, onPress, onDelete, onPin, onFlag, navigation, listings }) {
   const swipeRef = useRef(null);
 
+  const close = () => swipeRef.current?.close();
+
   const renderRightActions = () => (
-    <TouchableOpacity
-      style={styles.deleteAction}
-      onPress={() => { swipeRef.current?.close(); onDelete(item); }}
-      activeOpacity={0.85}
-    >
-      <Ionicons name="trash-outline" size={20} color="#fff" />
-      <Text style={styles.deleteActionText}>Delete</Text>
-    </TouchableOpacity>
+    <View style={styles.swipeActions}>
+      <TouchableOpacity
+        style={[styles.swipeBtn, styles.swipePinBtn]}
+        onPress={() => { close(); onPin(item); }}
+        activeOpacity={0.85}
+      >
+        <Ionicons name={item.pinned ? 'pin' : 'pin-outline'} size={20} color="#fff" />
+        <Text style={styles.swipeBtnText}>{item.pinned ? 'Unpin' : 'Pin'}</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.swipeBtn, styles.swipeFlagBtn]}
+        onPress={() => { close(); onFlag(item); }}
+        activeOpacity={0.85}
+      >
+        <Ionicons name={item.flagged ? 'flag' : 'flag-outline'} size={20} color="#fff" />
+        <Text style={styles.swipeBtnText}>{item.flagged ? 'Unflag' : 'Flag'}</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.swipeBtn, styles.swipeDeleteBtn]}
+        onPress={() => { close(); onDelete(item); }}
+        activeOpacity={0.85}
+      >
+        <Ionicons name="trash-outline" size={20} color="#fff" />
+        <Text style={styles.swipeBtnText}>Delete</Text>
+      </TouchableOpacity>
+    </View>
   );
 
   return (
@@ -79,7 +99,7 @@ function SwipeableThreadRow({ item, onPress, onDelete, navigation, listings }) {
       ref={swipeRef}
       renderRightActions={renderRightActions}
       friction={2}
-      rightThreshold={40}
+      rightThreshold={60}
       overshootRight={false}
     >
       <ThreadRow item={item} onPress={onPress} navigation={navigation} listings={listings} />
@@ -88,7 +108,7 @@ function SwipeableThreadRow({ item, onPress, onDelete, navigation, listings }) {
 }
 
 export default function MessagesScreen({ navigation }) {
-  const { visibleMessages: messages, userType, signOut, unarchiveThread, deleteThread, listings } = useApp();
+  const { visibleMessages: messages, userType, signOut, unarchiveThread, deleteThread, pinThread, flagThread, listings } = useApp();
   const [tab, setTab] = useState('inbox'); // 'inbox' | 'archived'
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
   const deleteTimerRef = useRef(null);
@@ -125,6 +145,8 @@ export default function MessagesScreen({ navigation }) {
       item={item}
       onPress={() => navigation.navigate('Chat', { thread: item })}
       onDelete={handleDeleteThread}
+      onPin={pinThread ? (t) => pinThread(t.id) : () => {}}
+      onFlag={flagThread ? (t) => flagThread(t.id) : () => {}}
       navigation={navigation}
       listings={listings}
     />
@@ -603,17 +625,25 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
-  // Swipe-to-delete
-  deleteAction: {
-    width: 80,
-    marginLeft: 8,
-    backgroundColor: colors.danger,
+  // Swipe actions (pin / flag / delete)
+  swipeActions: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 6,
+    paddingLeft: 8,
+  },
+  swipeBtn: {
+    width: 72,
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     gap: 4,
+    paddingVertical: 10,
   },
-  deleteActionText: {
+  swipePinBtn: { backgroundColor: colors.primary },
+  swipeFlagBtn: { backgroundColor: colors.warning },
+  swipeDeleteBtn: { backgroundColor: colors.danger },
+  swipeBtnText: {
     color: '#fff',
     fontSize: 11,
     fontWeight: '700',

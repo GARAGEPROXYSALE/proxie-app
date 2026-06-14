@@ -581,6 +581,16 @@ export function AppProvider({ children }) {
     });
   }, []);
 
+  const flagThread = useCallback((threadId) => {
+    setMessages((prev) => {
+      const updated = prev.map((t) =>
+        t.id === threadId ? { ...t, flagged: !t.flagged } : t
+      );
+      messagesRef.current = updated;
+      return updated;
+    });
+  }, []);
+
   // ── Messages ─────────────────────────────────────────────────
 
   const sendMessage = useCallback(async (threadId, text, extra = {}) => {
@@ -712,6 +722,7 @@ export function AppProvider({ children }) {
         // Thread management
         markUnread,
         pinThread,
+        flagThread,
         muteThread,
         unmuteThread,
         archiveThread,
