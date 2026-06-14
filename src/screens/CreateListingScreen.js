@@ -14,44 +14,60 @@ import { sanitizeText, sanitizePrice, validateListingPayload } from '../lib/sani
 import colors from '../theme/colors';
 
 const CONDITIONS = ['New', 'Like New', 'Good', 'Fair'];
-const CATEGORIES = ['Furniture', 'Electronics', 'Clothing', 'Books', 'Kitchen', 'Sports', 'Toys', 'Other'];
+const CATEGORIES = ['Furniture', 'Electronics', 'Clothing', 'Books', 'Kitchen', 'Sports', 'Toys', 'Tickets', 'Other'];
+const TICKET_TYPES = ['General Admission', 'Reserved', 'VIP', 'Suite'];
 
 export default function CreateListingScreen({ navigation }) {
   const { addListing, user } = useApp();
-  const [title, setTitle] = useState('');
-  const [price, setPrice] = useState('');
-  const [description, setDescription] = useState('');
-  const [condition, setCondition] = useState('Good');
+
+  // Shared
   const [category, setCategory] = useState('');
+  const [price, setPrice] = useState('');
   const [photos, setPhotos] = useState([]);
   const [gpsCoords, setGpsCoords] = useState(null);
   const [publishing, setPublishing] = useState(false);
 
+  // Standard listing fields
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [condition, setCondition] = useState('Good');
+
+  // Ticket-specific fields
+  const [eventName, setEventName] = useState('');
+  const [eventDate, setEventDate] = useState('');
+  const [eventTime, setEventTime] = useState('');
+  const [venue, setVenue] = useState('');
+  const [numTickets, setNumTickets] = useState('1');
+  const [seatInfo, setSeatInfo] = useState('');
+  const [ticketType, setTicketType] = useState('Reserved');
+  const [ticketNotes, setTicketNotes] = useState('');
+
+  const isTickets = category === 'Tickets';
+
+  const isValid = isTickets
+    ? eventName.trim() && price.trim() && eventDate.trim() && venue.trim() && numTickets
+    : title.trim() && price.trim() && description.trim() && category;
+
   useEffect(() => {
     getUserLocation().then((loc) => setGpsCoords(loc)).catch(() => {});
   }, []);
-
-  const isValid = title.trim() && price.trim() && description.trim() && category;
 
   const handleAddPhoto = async () => {
     if (photos.length >= 6) {
       Alert.alert('Max photos', 'You can add up to 6 photos per listing.');
       return;
     }
-
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Permission needed', 'Please allow photo access to add listing photos.');
       return;
     }
-
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsMultipleSelection: true,
       quality: 0.8,
       selectionLimit: 6 - photos.length,
     });
-
     if (!result.canceled && result.assets) {
       setPhotos((prev) => [...prev, ...result.assets.map((a) => a.uri)].slice(0, 6));
     }
@@ -70,14 +86,34 @@ export default function CreateListingScreen({ navigation }) {
     }
   };
 
-  const removePhoto = (index) => {
-    setPhotos((prev) => prev.filter((_, i) => i !== index));
+  const removePhoto = (index) => setPhotos((prev) => prev.filter((_, i) => i !== index));
+
+  const buildTicketListing = () => {
+    const n = parseInt(numTickets, 10) || 1;
+    const builtTitle = `${eventName.trim()} — ${n} ${ticketType} Ticket${n !== 1 ? 's' : ''}`;
+    const lines = [
+      `📅 ${eventDate.trim()}${eventTime.trim() ? ` · ${eventTime.trim()}` : ''}`,
+      `📍 ${venue.trim()}`,
+      `🎟 ${n} ${ticketType} ticket${n !== 1 ? 's' : ''}`,
+      seatInfo.trim() ? `💺 ${seatInfo.trim()}` : null,
+      ticketNotes.trim() ? `\n${ticketNotes.trim()}` : null,
+    ].filter(Boolean);
+    return { title: builtTitle, description: lines.join('\n') };
   };
 
   const handlePublish = async () => {
-    const cleanTitle = sanitizeText(title, 80);
-    const cleanDesc = sanitizeText(description, 500);
     const cleanPrice = sanitizePrice(price);
+
+    let cleanTitle, cleanDesc;
+    if (isTickets) {
+      const built = buildTicketListing();
+      cleanTitle = built.title;
+      cleanDesc = built.description;
+    } else {
+      cleanTitle = sanitizeText(title, 80);
+      cleanDesc = sanitizeText(description, 500);
+    }
+
     const errors = validateListingPayload({ title: cleanTitle, price: cleanPrice, description: cleanDesc, category });
     if (errors.length > 0) { Alert.alert('Missing info', errors[0]); return; }
 
@@ -97,7 +133,7 @@ export default function CreateListingScreen({ navigation }) {
         title: cleanTitle,
         price: cleanPrice,
         description: cleanDesc,
-        condition,
+        condition: isTickets ? 'New' : condition,
         category,
         photos: uploadedUrls,
         latitude: gpsCoords?.latitude || null,
@@ -115,10 +151,7 @@ export default function CreateListingScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -171,22 +204,30 @@ export default function CreateListingScreen({ navigation }) {
               <Text style={styles.gpsText}>{gpsCoords ? 'Location captured — buyers nearby will see this' : 'Getting location…'}</Text>
             </View>
 
-            {/* Title */}
+            {/* Category */}
             <View style={styles.field}>
-              <Text style={styles.label}>Title *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="What are you selling?"
-                placeholderTextColor={colors.textLight}
-                value={title}
-                onChangeText={setTitle}
-                maxLength={80}
-              />
+              <Text style={styles.label}>Category *</Text>
+              <View style={styles.chipGrid}>
+                {CATEGORIES.map((c) => (
+                  <TouchableOpacity
+                    key={c}
+                    style={[styles.chip, category === c && styles.chipActive, c === 'Tickets' && styles.ticketChip, category === c && c === 'Tickets' && styles.ticketChipActive]}
+                    onPress={() => setCategory(c)}
+                  >
+                    {c === 'Tickets' && (
+                      <Ionicons name="ticket-outline" size={13} color={category === 'Tickets' ? '#fff' : '#9B59B6'} />
+                    )}
+                    <Text style={[styles.chipText, category === c && styles.chipTextActive]}>{c}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
 
             {/* Price */}
             <View style={styles.field}>
-              <Text style={styles.label}>Price *</Text>
+              <Text style={styles.label}>
+                {isTickets ? 'Asking price (total) *' : 'Price *'}
+              </Text>
               <View style={styles.priceInput}>
                 <Text style={styles.dollarSign}>$</Text>
                 <TextInput
@@ -204,58 +245,185 @@ export default function CreateListingScreen({ navigation }) {
               </View>
             </View>
 
-            {/* Category */}
-            <View style={styles.field}>
-              <Text style={styles.label}>Category *</Text>
-              <View style={styles.chipGrid}>
-                {CATEGORIES.map((c) => (
-                  <TouchableOpacity
-                    key={c}
-                    style={[styles.chip, category === c && styles.chipActive]}
-                    onPress={() => setCategory(c)}
-                  >
-                    <Text style={[styles.chipText, category === c && styles.chipTextActive]}>{c}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
+            {/* ── TICKET FIELDS ────────────────────────────────── */}
+            {isTickets && (
+              <>
+                <View style={styles.ticketBanner}>
+                  <Ionicons name="ticket" size={16} color="#9B59B6" />
+                  <Text style={styles.ticketBannerText}>Ticket details — fill in what you know</Text>
+                </View>
 
-            {/* Condition */}
-            <View style={styles.field}>
-              <Text style={styles.label}>Condition</Text>
-              <View style={styles.condRow}>
-                {CONDITIONS.map((c) => (
-                  <TouchableOpacity
-                    key={c}
-                    style={[styles.condChip, condition === c && styles.condChipActive]}
-                    onPress={() => setCondition(c)}
-                  >
-                    <Text style={[styles.condText, condition === c && styles.condTextActive]}>{c}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
+                {/* Event Name */}
+                <View style={styles.field}>
+                  <Text style={styles.label}>Event name *</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="e.g. Taylor Swift · The Eras Tour"
+                    placeholderTextColor={colors.textLight}
+                    value={eventName}
+                    onChangeText={setEventName}
+                    maxLength={100}
+                  />
+                </View>
 
-            {/* Description */}
-            <View style={styles.field}>
-              <Text style={styles.label}>Description *</Text>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                placeholder="Describe your item — size, color, why you're selling it..."
-                placeholderTextColor={colors.textLight}
-                value={description}
-                onChangeText={setDescription}
-                multiline
-                numberOfLines={5}
-                textAlignVertical="top"
-                maxLength={500}
-              />
-              <Text style={styles.charCount}>{description.length}/500</Text>
-            </View>
+                {/* Date + Time row */}
+                <View style={styles.rowFields}>
+                  <View style={[styles.field, { flex: 1 }]}>
+                    <Text style={styles.label}>Date *</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="e.g. Aug 14, 2025"
+                      placeholderTextColor={colors.textLight}
+                      value={eventDate}
+                      onChangeText={setEventDate}
+                      maxLength={30}
+                    />
+                  </View>
+                  <View style={[styles.field, { flex: 1 }]}>
+                    <Text style={styles.label}>Time <Text style={styles.optional}>(optional)</Text></Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="e.g. 7:30 PM"
+                      placeholderTextColor={colors.textLight}
+                      value={eventTime}
+                      onChangeText={setEventTime}
+                      maxLength={20}
+                    />
+                  </View>
+                </View>
+
+                {/* Venue */}
+                <View style={styles.field}>
+                  <Text style={styles.label}>Venue *</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="e.g. Madison Square Garden, New York, NY"
+                    placeholderTextColor={colors.textLight}
+                    value={venue}
+                    onChangeText={setVenue}
+                    maxLength={100}
+                  />
+                </View>
+
+                {/* # Tickets + Seat Info row */}
+                <View style={styles.rowFields}>
+                  <View style={[styles.field, { flex: 1 }]}>
+                    <Text style={styles.label}># of Tickets *</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="1"
+                      placeholderTextColor={colors.textLight}
+                      value={numTickets}
+                      onChangeText={setNumTickets}
+                      keyboardType="numeric"
+                      maxLength={2}
+                    />
+                  </View>
+                  <View style={[styles.field, { flex: 2 }]}>
+                    <Text style={styles.label}>Section / Row / Seat <Text style={styles.optional}>(optional)</Text></Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="e.g. Sec 112, Row C, Seats 1–2"
+                      placeholderTextColor={colors.textLight}
+                      value={seatInfo}
+                      onChangeText={setSeatInfo}
+                      maxLength={80}
+                    />
+                  </View>
+                </View>
+
+                {/* Ticket Type */}
+                <View style={styles.field}>
+                  <Text style={styles.label}>Ticket type</Text>
+                  <View style={styles.condRow}>
+                    {TICKET_TYPES.map((t) => (
+                      <TouchableOpacity
+                        key={t}
+                        style={[styles.condChip, ticketType === t && styles.condChipActive]}
+                        onPress={() => setTicketType(t)}
+                      >
+                        <Text style={[styles.condText, ticketType === t && styles.condTextActive]} numberOfLines={1}>{t}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                {/* Additional Notes */}
+                <View style={styles.field}>
+                  <Text style={styles.label}>Additional notes <Text style={styles.optional}>(optional)</Text></Text>
+                  <TextInput
+                    style={[styles.input, styles.textArea]}
+                    placeholder="Transfer method, reason for selling, any restrictions..."
+                    placeholderTextColor={colors.textLight}
+                    value={ticketNotes}
+                    onChangeText={setTicketNotes}
+                    multiline
+                    numberOfLines={3}
+                    textAlignVertical="top"
+                    maxLength={300}
+                  />
+                </View>
+              </>
+            )}
+
+            {/* ── STANDARD FIELDS (non-ticket) ─────────────────── */}
+            {!isTickets && (
+              <>
+                {/* Title */}
+                <View style={styles.field}>
+                  <Text style={styles.label}>Title *</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="What are you selling?"
+                    placeholderTextColor={colors.textLight}
+                    value={title}
+                    onChangeText={setTitle}
+                    maxLength={80}
+                  />
+                </View>
+
+                {/* Condition */}
+                <View style={styles.field}>
+                  <Text style={styles.label}>Condition</Text>
+                  <View style={styles.condRow}>
+                    {CONDITIONS.map((c) => (
+                      <TouchableOpacity
+                        key={c}
+                        style={[styles.condChip, condition === c && styles.condChipActive]}
+                        onPress={() => setCondition(c)}
+                      >
+                        <Text style={[styles.condText, condition === c && styles.condTextActive]}>{c}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                {/* Description */}
+                <View style={styles.field}>
+                  <Text style={styles.label}>Description *</Text>
+                  <TextInput
+                    style={[styles.input, styles.textArea]}
+                    placeholder="Describe your item — size, color, why you're selling it..."
+                    placeholderTextColor={colors.textLight}
+                    value={description}
+                    onChangeText={setDescription}
+                    multiline
+                    numberOfLines={5}
+                    textAlignVertical="top"
+                    maxLength={500}
+                  />
+                  <Text style={styles.charCount}>{description.length}/500</Text>
+                </View>
+              </>
+            )}
 
             <View style={styles.tip}>
               <Ionicons name="bulb-outline" size={16} color={colors.warning} />
-              <Text style={styles.tipText}>Your item appears on nearby buyers' radars when you Go Live.</Text>
+              <Text style={styles.tipText}>
+                {isTickets
+                  ? 'Ticket listings appear on buyers\' radars just like any other item.'
+                  : 'Your item appears on nearby buyers\' radars when you Go Live.'}
+              </Text>
             </View>
 
             <TouchableOpacity
@@ -268,8 +436,8 @@ export default function CreateListingScreen({ navigation }) {
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
                 <>
-                  <Ionicons name="radio-outline" size={18} color="#fff" />
-                  <Text style={styles.publishFullText}>Publish Listing</Text>
+                  <Ionicons name={isTickets ? 'ticket-outline' : 'radio-outline'} size={18} color="#fff" />
+                  <Text style={styles.publishFullText}>{isTickets ? 'List Tickets' : 'Publish Listing'}</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -318,11 +486,12 @@ const styles = StyleSheet.create({
   gpsText: { fontSize: 12, color: colors.textSecondary },
   field: { marginBottom: 20 },
   label: { fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 8 },
+  optional: { fontWeight: '400', color: colors.textLight, fontSize: 12 },
   input: {
     backgroundColor: colors.cardBackground, borderRadius: 14, padding: 14,
     fontSize: 15, color: colors.text, borderWidth: 1, borderColor: colors.border,
   },
-  textArea: { height: 110, paddingTop: 14 },
+  textArea: { height: 90, paddingTop: 14 },
   charCount: { fontSize: 11, color: colors.textLight, textAlign: 'right', marginTop: 4 },
   priceInput: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: colors.cardBackground,
@@ -332,22 +501,37 @@ const styles = StyleSheet.create({
   priceField: { flex: 1, fontSize: 20, fontWeight: '700', color: colors.text, paddingVertical: 14 },
   freeBtn: { backgroundColor: colors.primaryLight, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5 },
   freeBtnText: { fontSize: 12, fontWeight: '700', color: '#fff' },
+
   chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12,
     backgroundColor: colors.cardBackground, borderWidth: 1, borderColor: colors.border,
   },
   chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  ticketChip: { borderColor: '#9B59B640', backgroundColor: '#9B59B608' },
+  ticketChipActive: { backgroundColor: '#9B59B6', borderColor: '#9B59B6' },
   chipText: { fontSize: 13, color: colors.textSecondary, fontWeight: '500' },
   chipTextActive: { color: '#fff', fontWeight: '700' },
-  condRow: { flexDirection: 'row', gap: 8 },
+
+  condRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   condChip: {
-    flex: 1, paddingVertical: 10, borderRadius: 12,
+    flex: 1, paddingVertical: 10, borderRadius: 12, minWidth: 70,
     backgroundColor: colors.cardBackground, borderWidth: 1, borderColor: colors.border, alignItems: 'center',
   },
   condChipActive: { backgroundColor: colors.primaryLight, borderColor: colors.primaryLight },
   condText: { fontSize: 12, color: colors.textSecondary, fontWeight: '500' },
   condTextActive: { color: '#fff', fontWeight: '700' },
+
+  rowFields: { flexDirection: 'row', gap: 10 },
+
+  ticketBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#9B59B610', borderRadius: 12, padding: 12, marginBottom: 20,
+    borderWidth: 1, borderColor: '#9B59B630',
+  },
+  ticketBannerText: { fontSize: 13, fontWeight: '600', color: '#9B59B6' },
+
   tip: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 8,
     backgroundColor: '#FFF8E8', borderRadius: 12, padding: 12, marginBottom: 20,
