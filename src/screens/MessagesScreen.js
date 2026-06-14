@@ -107,14 +107,18 @@ export default function MessagesScreen({ navigation }) {
     setPendingDeleteId(null);
   }, []);
 
-  // Sort: pins first, then by timestamp position (index)
-  const inbox = messages
-    .filter((m) => !m.archived)
-    .sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
-
+  const inbox = messages.filter((m) => !m.archived);
   const archived = messages.filter((m) => m.archived);
-  const displayed = (tab === 'inbox' ? inbox : archived).filter((m) => m.id !== pendingDeleteId);
   const totalUnread = inbox.reduce((acc, m) => acc + (m.markedUnread ? 1 : m.unread || 0), 0);
+
+  // Split inbox into pinned boxes + regular list
+  const pinnedThreads = inbox.filter((m) => m.pinned && m.id !== pendingDeleteId);
+  const regularThreads = inbox.filter((m) => !m.pinned && m.id !== pendingDeleteId);
+  const archivedFiltered = archived.filter((m) => m.id !== pendingDeleteId);
+
+  const isInbox = tab === 'inbox';
+  const listData = isInbox ? regularThreads : archivedFiltered;
+  const hasContent = listData.length > 0 || (isInbox && pinnedThreads.length > 0);
 
   const renderThread = ({ item }) => (
     <SwipeableThreadRow
@@ -240,9 +244,9 @@ export default function MessagesScreen({ navigation }) {
       )}
 
       {/* Thread list */}
-      {displayed.length === 0 ? (
+      {!hasContent ? (
         <View style={styles.empty}>
-          {tab === 'inbox' ? (
+          {isInbox ? (
             <>
               <Ionicons name="chatbubbles-outline" size={64} color={colors.primaryLight} />
               <Text style={styles.emptyTitle}>No messages yet</Text>
@@ -258,11 +262,55 @@ export default function MessagesScreen({ navigation }) {
         </View>
       ) : (
         <FlatList
-          data={displayed}
+          data={listData}
           keyExtractor={(m) => m.id}
-          renderItem={tab === 'inbox' ? renderThread : renderArchivedThread}
+          renderItem={isInbox ? renderThread : renderArchivedThread}
           contentContainerStyle={styles.list}
           ItemSeparatorComponent={() => <View style={styles.divider} />}
+          ListHeaderComponent={isInbox && pinnedThreads.length > 0 ? () => (
+            <View style={styles.pinnedSection}>
+              <View style={styles.pinnedSectionHeader}>
+                <Ionicons name="pin" size={13} color={colors.textSecondary} />
+                <Text style={styles.pinnedSectionLabel}>Pinned</Text>
+              </View>
+              {pinnedThreads.map((thread) => {
+                const isUnread = thread.markedUnread || thread.unread > 0;
+                return (
+                  <TouchableOpacity
+                    key={thread.id}
+                    style={styles.pinnedCard}
+                    onPress={() => navigation.navigate('Chat', { thread })}
+                    activeOpacity={0.85}
+                  >
+                    <View style={styles.pinnedAvatar}>
+                      <Ionicons name="person" size={18} color={colors.primaryLight} />
+                    </View>
+                    <View style={styles.pinnedInfo}>
+                      <View style={styles.pinnedTop}>
+                        <Text style={[styles.pinnedName, isUnread && styles.pinnedNameUnread]} numberOfLines={1}>
+                          {thread.with.name}
+                        </Text>
+                        <Text style={styles.pinnedTime}>{thread.timestamp}</Text>
+                      </View>
+                      <Text style={styles.pinnedListing} numberOfLines={1}>{thread.listingTitle}</Text>
+                      <Text style={[styles.pinnedMsg, isUnread && styles.pinnedMsgUnread]} numberOfLines={1}>
+                        {thread.lastMessage || 'New conversation'}
+                      </Text>
+                    </View>
+                    <View style={styles.pinnedMeta}>
+                      <Ionicons name="pin" size={11} color={colors.primary} />
+                      {isUnread && (
+                        <View style={styles.pinnedBadge}>
+                          <Text style={styles.pinnedBadgeText}>{thread.unread || '●'}</Text>
+                        </View>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+              {listData.length > 0 && <View style={styles.pinnedDivider} />}
+            </View>
+          ) : null}
         />
       )}
     </SafeAreaView>
@@ -481,6 +529,79 @@ const styles = StyleSheet.create({
   wallBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
   wallBack: { paddingVertical: 8 },
   wallBackText: { fontSize: 13, color: colors.textSecondary, fontWeight: '500' },
+
+  // Pinned section
+  pinnedSection: {
+    marginBottom: 4,
+  },
+  pinnedSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 4,
+    marginBottom: 8,
+  },
+  pinnedSectionLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  pinnedCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary + '0C',
+    borderRadius: 14,
+    padding: 12,
+    gap: 10,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: colors.primary + '22',
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
+  },
+  pinnedAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#DCE9F5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pinnedInfo: { flex: 1, gap: 1 },
+  pinnedTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 1,
+  },
+  pinnedName: { fontSize: 14, fontWeight: '600', color: colors.text, flex: 1 },
+  pinnedNameUnread: { fontWeight: '800' },
+  pinnedTime: { fontSize: 11, color: colors.textLight },
+  pinnedListing: { fontSize: 11, color: colors.primary, fontWeight: '500' },
+  pinnedMsg: { fontSize: 12, color: colors.textSecondary },
+  pinnedMsgUnread: { color: colors.text, fontWeight: '600' },
+  pinnedMeta: {
+    alignItems: 'flex-end',
+    gap: 5,
+  },
+  pinnedBadge: {
+    backgroundColor: colors.primary,
+    borderRadius: 9,
+    minWidth: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  pinnedBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
+  pinnedDivider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginBottom: 12,
+    marginTop: 4,
+  },
 
   // Swipe-to-delete
   deleteAction: {
