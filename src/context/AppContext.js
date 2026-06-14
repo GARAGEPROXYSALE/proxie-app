@@ -277,7 +277,8 @@ export function AppProvider({ children }) {
       const withinRange = dist <= proximityMiles;
       const matchesCategory = selectedCategory === 'all' || l.category.toLowerCase() === selectedCategory;
       const notBlocked = !blockedUsers.includes(l.seller?.id);
-      return withinRange && matchesCategory && l.active && notBlocked;
+      const notOwn = l.seller?.id !== user?.id && l.seller?.id !== 'me';
+      return withinRange && matchesCategory && l.active && notBlocked && notOwn;
     });
 
     return rankListings(filtered);
