@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
   SafeAreaView, FlatList,
 } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { onProfilePress } from '../lib/profilePress';
@@ -59,9 +60,52 @@ function ThreadRow({ item, onPress, navigation, listings }) {
   );
 }
 
+function SwipeableThreadRow({ item, onPress, onDelete, navigation, listings }) {
+  const swipeRef = useRef(null);
+
+  const renderRightActions = () => (
+    <TouchableOpacity
+      style={styles.deleteAction}
+      onPress={() => { swipeRef.current?.close(); onDelete(item); }}
+      activeOpacity={0.85}
+    >
+      <Ionicons name="trash-outline" size={20} color="#fff" />
+      <Text style={styles.deleteActionText}>Delete</Text>
+    </TouchableOpacity>
+  );
+
+  return (
+    <Swipeable
+      ref={swipeRef}
+      renderRightActions={renderRightActions}
+      friction={2}
+      rightThreshold={40}
+      overshootRight={false}
+    >
+      <ThreadRow item={item} onPress={onPress} navigation={navigation} listings={listings} />
+    </Swipeable>
+  );
+}
+
 export default function MessagesScreen({ navigation }) {
-  const { visibleMessages: messages, userType, signOut, unarchiveThread, listings } = useApp();
+  const { visibleMessages: messages, userType, signOut, unarchiveThread, deleteThread, listings } = useApp();
   const [tab, setTab] = useState('inbox'); // 'inbox' | 'archived'
+  const [pendingDeleteId, setPendingDeleteId] = useState(null);
+  const deleteTimerRef = useRef(null);
+
+  const handleDeleteThread = useCallback((thread) => {
+    if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current);
+    setPendingDeleteId(thread.id);
+    deleteTimerRef.current = setTimeout(() => {
+      deleteThread(thread.id);
+      setPendingDeleteId(null);
+    }, 4000);
+  }, [deleteThread]);
+
+  const handleUndo = useCallback(() => {
+    clearTimeout(deleteTimerRef.current);
+    setPendingDeleteId(null);
+  }, []);
 
   // Sort: pins first, then by timestamp position (index)
   const inbox = messages
@@ -69,13 +113,14 @@ export default function MessagesScreen({ navigation }) {
     .sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
 
   const archived = messages.filter((m) => m.archived);
-  const displayed = tab === 'inbox' ? inbox : archived;
+  const displayed = (tab === 'inbox' ? inbox : archived).filter((m) => m.id !== pendingDeleteId);
   const totalUnread = inbox.reduce((acc, m) => acc + (m.markedUnread ? 1 : m.unread || 0), 0);
 
   const renderThread = ({ item }) => (
-    <ThreadRow
+    <SwipeableThreadRow
       item={item}
       onPress={() => navigation.navigate('Chat', { thread: item })}
+      onDelete={handleDeleteThread}
       navigation={navigation}
       listings={listings}
     />
@@ -182,6 +227,17 @@ export default function MessagesScreen({ navigation }) {
           )}
         </TouchableOpacity>
       </View>
+
+      {/* Undo delete toast */}
+      {pendingDeleteId && (
+        <View style={styles.undoToast}>
+          <Ionicons name="trash-outline" size={16} color="rgba(255,255,255,0.7)" />
+          <Text style={styles.undoToastText}>Conversation deleted</Text>
+          <TouchableOpacity onPress={handleUndo} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Text style={styles.undoToastBtn}>Undo</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Thread list */}
       {displayed.length === 0 ? (
@@ -425,4 +481,50 @@ const styles = StyleSheet.create({
   wallBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
   wallBack: { paddingVertical: 8 },
   wallBackText: { fontSize: 13, color: colors.textSecondary, fontWeight: '500' },
+
+  // Swipe-to-delete
+  deleteAction: {
+    width: 80,
+    marginLeft: 8,
+    backgroundColor: colors.danger,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 4,
+  },
+  deleteActionText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+
+  // Undo toast
+  undoToast: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginHorizontal: 16,
+    marginBottom: 6,
+    backgroundColor: colors.text,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  undoToastText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#fff',
+    fontWeight: '500',
+  },
+  undoToastBtn: {
+    fontSize: 14,
+    color: colors.primaryLight,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
 });

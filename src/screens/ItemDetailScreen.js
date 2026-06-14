@@ -189,24 +189,13 @@ export default function ItemDetailScreen({ navigation, route }) {
               </View>
             ) : (
               <View style={styles.ownerActions}>
-                {/* Secondary row */}
-                <View style={styles.ownerSecondaryRow}>
-                  <Pressable
-                    style={({ pressed }) => [styles.stillAvailBtn, pressed && styles.btnPressed]}
-                    onPress={() => { renewListing(liveItem.id); navigation.goBack(); }}
-                  >
-                    <Ionicons name="checkmark-circle-outline" size={16} color={colors.success} />
-                    <Text style={styles.stillAvailText}>Still Available</Text>
-                  </Pressable>
-                  <Pressable
-                    style={({ pressed }) => [styles.pickedUpBtn, pressed && styles.btnPressed]}
-                    onPress={() => { pickUpListing(liveItem.id); navigation.goBack(); }}
-                  >
-                    <Ionicons name="hand-left-outline" size={16} color="#A0522D" />
-                    <Text style={styles.pickedUpText}>Just Picked Up</Text>
-                  </Pressable>
-                </View>
-                {/* Primary */}
+                <Pressable
+                  style={({ pressed }) => [styles.stillAvailBtn, pressed && styles.btnPressed]}
+                  onPress={() => { renewListing(liveItem.id); navigation.goBack(); }}
+                >
+                  <Ionicons name="checkmark-circle-outline" size={16} color={colors.success} />
+                  <Text style={styles.stillAvailText}>Still Available</Text>
+                </Pressable>
                 <Pressable
                   style={({ pressed }) => [styles.markSoldBtn, pressed && { opacity: 0.85 }]}
                   onPress={() => openMarkSoldModal(liveItem)}
@@ -477,7 +466,6 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   stillAvailBtn: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

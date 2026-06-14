@@ -60,7 +60,8 @@
       "Bash(npm audit *)",
       "Bash(python3 -c ' *)",
       "Bash(awk '{print $5, $9}')",
-      "Bash(grep -rn \"\\\\.query\\(\\\\|raw\\(\\\\|sql\\\\`\\\\|SELECT\\\\|INSERT\\\\|UPDATE\\\\|DELETE\" src/ --include=\"*.js\")"
+      "Bash(grep -rn \"\\\\.query\\(\\\\|raw\\(\\\\|sql\\\\`\\\\|SELECT\\\\|INSERT\\\\|UPDATE\\\\|DELETE\" src/ --include=\"*.js\")",
+      "Bash(node -e \"require\\('@react-native-community/slider'\\); console.log\\('slider OK'\\)\")"
     ]
   }
 }

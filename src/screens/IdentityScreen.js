@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { isStale, isExpired } from '../lib/listingUtils';
 import colors from '../theme/colors';
+import { Swipeable } from 'react-native-gesture-handler';
 
 const SCREEN_H = Dimensions.get('window').height;
 
@@ -30,6 +31,55 @@ function SectionCard({ title, icon, onPress, children, badge }) {
       </View>
       {children}
     </TouchableOpacity>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Swipeable listing row — reveals Still Available + Mark Sold
+// ─────────────────────────────────────────────────────────────
+
+function SwipeableListingRow({ listing, onMarkSold, onStillAvailable }) {
+  const swipeRef = useRef(null);
+
+  const renderRightActions = () => (
+    <View style={styles.listingSwipeActions}>
+      <TouchableOpacity
+        style={styles.swipeStillAvail}
+        onPress={() => { swipeRef.current?.close(); onStillAvailable(listing.id); }}
+        activeOpacity={0.85}
+      >
+        <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
+        <Text style={styles.swipeActionText}>Still{'\n'}Available</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.swipeMarkSold}
+        onPress={() => { swipeRef.current?.close(); onMarkSold(listing); }}
+        activeOpacity={0.85}
+      >
+        <Ionicons name="checkmark-done-circle" size={18} color="#fff" />
+        <Text style={styles.swipeActionText}>Mark{'\n'}Sold</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  return (
+    <Swipeable
+      ref={swipeRef}
+      renderRightActions={renderRightActions}
+      friction={2}
+      rightThreshold={50}
+      overshootRight={false}
+    >
+      <View style={styles.myListingRow}>
+        <Image source={{ uri: listing.photos?.[0] }} style={styles.myListingImage} resizeMode="cover" />
+        <View style={styles.myListingInfo}>
+          <Text style={styles.myListingTitle} numberOfLines={1}>{listing.title}</Text>
+          <Text style={styles.myListingPrice}>${listing.price}</Text>
+          <Text style={styles.myListingMeta}>{listing.postedAt}</Text>
+        </View>
+        <Ionicons name="chevron-back" size={14} color={colors.textLight} style={{ transform: [{ scaleX: -1 }] }} />
+      </View>
+    </Swipeable>
   );
 }
 
@@ -248,14 +298,12 @@ function HostView({ navigation, user, listings, messages, onScreenScroll, openMa
             ) : (
               <View style={styles.myListingsList}>
                 {activeListings.map((l) => (
-                  <View key={l.id} style={styles.myListingRow}>
-                    <Image source={{ uri: l.photos[0] }} style={styles.myListingImage} resizeMode="cover" />
-                    <View style={styles.myListingInfo}>
-                      <Text style={styles.myListingTitle} numberOfLines={1}>{l.title}</Text>
-                      <Text style={styles.myListingPrice}>${l.price}</Text>
-                      <Text style={styles.myListingMeta}>{l.postedAt}</Text>
-                    </View>
-                  </View>
+                  <SwipeableListingRow
+                    key={l.id}
+                    listing={l}
+                    onMarkSold={openMarkSoldModal}
+                    onStillAvailable={renewListing}
+                  />
                 ))}
               </View>
             )
@@ -1143,4 +1191,37 @@ const styles = StyleSheet.create({
   tipText: { flex: 1 },
   tipTitle: { fontSize: 14, fontWeight: '700', color: '#92630A', marginBottom: 3 },
   tipBody: { fontSize: 13, color: '#92630A', lineHeight: 18 },
+
+  // Swipeable listing row actions
+  listingSwipeActions: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    paddingLeft: 8,
+    gap: 6,
+  },
+  swipeStillAvail: {
+    width: 82,
+    backgroundColor: colors.success,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 8,
+  },
+  swipeMarkSold: {
+    width: 82,
+    backgroundColor: colors.danger,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 8,
+  },
+  swipeActionText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
+    textAlign: 'center',
+    lineHeight: 13,
+  },
 });

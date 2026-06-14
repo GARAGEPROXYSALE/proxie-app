@@ -4,6 +4,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AppProvider, useApp } from './src/context/AppContext';
 import CustomTabBar from './src/components/CustomTabBar';
@@ -143,14 +144,16 @@ export default function App() {
   const navigationRef = useRef(null);
 
   return (
-    <SafeAreaProvider>
-      <AppProvider>
-        <StatusBar style="dark" />
-        <NavigationContainer ref={navigationRef}>
-          <RootNavigator navigationRef={navigationRef} />
-        </NavigationContainer>
-        <GlobalOverlays navigationRef={navigationRef} />
-      </AppProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <AppProvider>
+          <StatusBar style="dark" />
+          <NavigationContainer ref={navigationRef}>
+            <RootNavigator navigationRef={navigationRef} />
+          </NavigationContainer>
+          <GlobalOverlays navigationRef={navigationRef} />
+        </AppProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
