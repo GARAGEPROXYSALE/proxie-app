@@ -38,7 +38,7 @@ function SectionCard({ title, icon, onPress, children, badge }) {
 // Swipeable stale check-in card — reveals Still Available + Mark Sold
 // ─────────────────────────────────────────────────────────────
 
-function SwipeableStaleCard({ listing, onMarkSold, onStillAvailable }) {
+function SwipeableStaleCard({ listing, onMarkSold, onStillAvailable, onPress }) {
   const swipeRef = useRef(null);
 
   const renderRightActions = () => (
@@ -70,15 +70,15 @@ function SwipeableStaleCard({ listing, onMarkSold, onStillAvailable }) {
       rightThreshold={50}
       overshootRight={false}
     >
-      <View style={styles.staleCard}>
+      <TouchableOpacity style={styles.staleCard} onPress={onPress} activeOpacity={0.85}>
         <Image source={{ uri: listing.photos?.[0] }} style={styles.staleImage} resizeMode="cover" />
         <View style={styles.staleInfo}>
           <Text style={styles.staleName} numberOfLines={1}>{listing.title}</Text>
           <Text style={styles.staleAge}>Listed {listing.postedAt} · ${listing.price}</Text>
-          <Text style={styles.stalePrompt}>← Swipe to update</Text>
+          <Text style={styles.stalePrompt}>Tap to view · Swipe to update</Text>
         </View>
-        <Ionicons name="chevron-back" size={14} color={colors.textLight} style={{ transform: [{ scaleX: -1 }], marginRight: 10 }} />
-      </View>
+        <Ionicons name="chevron-forward" size={14} color={colors.textLight} style={{ marginRight: 10 }} />
+      </TouchableOpacity>
     </Swipeable>
   );
 }
@@ -87,7 +87,7 @@ function SwipeableStaleCard({ listing, onMarkSold, onStillAvailable }) {
 // Swipeable listing row — reveals Still Available + Mark Sold
 // ─────────────────────────────────────────────────────────────
 
-function SwipeableListingRow({ listing, onMarkSold, onStillAvailable }) {
+function SwipeableListingRow({ listing, onMarkSold, onStillAvailable, onPress }) {
   const swipeRef = useRef(null);
 
   const renderRightActions = () => (
@@ -119,15 +119,15 @@ function SwipeableListingRow({ listing, onMarkSold, onStillAvailable }) {
       rightThreshold={50}
       overshootRight={false}
     >
-      <View style={styles.myListingRow}>
+      <TouchableOpacity style={styles.myListingRow} onPress={onPress} activeOpacity={0.85}>
         <Image source={{ uri: listing.photos?.[0] }} style={styles.myListingImage} resizeMode="cover" />
         <View style={styles.myListingInfo}>
           <Text style={styles.myListingTitle} numberOfLines={1}>{listing.title}</Text>
           <Text style={styles.myListingPrice}>${listing.price}</Text>
           <Text style={styles.myListingMeta}>{listing.postedAt}</Text>
         </View>
-        <Ionicons name="chevron-back" size={14} color={colors.textLight} style={{ transform: [{ scaleX: -1 }] }} />
-      </View>
+        <Ionicons name="chevron-forward" size={14} color={colors.textLight} />
+      </TouchableOpacity>
     </Swipeable>
   );
 }
@@ -276,6 +276,7 @@ function HostView({ navigation, user, listings, messages, onScreenScroll, openMa
                 listing={l}
                 onMarkSold={openMarkSoldModal}
                 onStillAvailable={renewListing}
+                onPress={() => navigation.navigate('ItemDetail', { item: l })}
               />
             ))}
           </View>
@@ -320,6 +321,7 @@ function HostView({ navigation, user, listings, messages, onScreenScroll, openMa
                     listing={l}
                     onMarkSold={openMarkSoldModal}
                     onStillAvailable={renewListing}
+                    onPress={() => navigation.navigate('ItemDetail', { item: l })}
                   />
                 ))}
               </View>
@@ -337,7 +339,12 @@ function HostView({ navigation, user, listings, messages, onScreenScroll, openMa
             ) : (
               <View style={styles.myListingsList}>
                 {soldListings.map((l) => (
-                  <View key={l.id} style={styles.myListingRow}>
+                  <TouchableOpacity
+                    key={l.id}
+                    style={styles.myListingRow}
+                    onPress={() => navigation.navigate('ItemDetail', { item: l })}
+                    activeOpacity={0.85}
+                  >
                     <Image source={{ uri: l.photos?.[0] }} style={[styles.myListingImage, { opacity: 0.7 }]} resizeMode="cover" />
                     <View style={styles.myListingInfo}>
                       <Text style={styles.myListingTitle} numberOfLines={1}>{l.title}</Text>
@@ -346,7 +353,8 @@ function HostView({ navigation, user, listings, messages, onScreenScroll, openMa
                         <Text style={styles.soldBadgeText}>{l.pickedUp ? 'Picked Up' : 'Sold'}</Text>
                       </View>
                     </View>
-                  </View>
+                    <Ionicons name="chevron-forward" size={14} color={colors.textLight} />
+                  </TouchableOpacity>
                 ))}
               </View>
             )
