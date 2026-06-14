@@ -64,6 +64,7 @@ export async function insertListing(listing) {
       title: listing.title,
       price: listing.price,
       description: listing.description,
+      condition: listing.condition || 'Good',
       category: listing.category,
       photos: listing.photos || [],
       latitude: listing.latitude,

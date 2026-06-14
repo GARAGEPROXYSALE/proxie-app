@@ -104,11 +104,10 @@ export default function CreateListingScreen({ navigation }) {
         longitude: gpsCoords?.longitude || null,
       });
 
-      Alert.alert('Listed! 🎉', 'Your item is now visible to nearby buyers.', [
-        { text: 'Great!', onPress: () => navigation.goBack() },
-      ]);
+      navigation.goBack();
     } catch (e) {
-      Alert.alert('Upload failed', 'Could not publish listing. Please try again.');
+      console.error('[CreateListing] publish failed:', e);
+      Alert.alert('Upload failed', e?.message || 'Could not publish listing. Please try again.');
     } finally {
       setPublishing(false);
     }
