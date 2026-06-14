@@ -48,7 +48,7 @@ function SwipeableStaleCard({ listing, onMarkSold, onStillAvailable, onPress }) 
         onPress={() => { swipeRef.current?.close(); onStillAvailable(listing.id); }}
         activeOpacity={0.85}
       >
-        <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
+        <Ionicons name="checkmark-circle-outline" size={22} color="#fff" />
         <Text style={styles.swipeActionText}>Still{'\n'}Available</Text>
       </TouchableOpacity>
       <TouchableOpacity
@@ -56,7 +56,7 @@ function SwipeableStaleCard({ listing, onMarkSold, onStillAvailable, onPress }) 
         onPress={() => { swipeRef.current?.close(); onMarkSold(listing); }}
         activeOpacity={0.85}
       >
-        <Ionicons name="checkmark-done-circle" size={18} color="#fff" />
+        <Ionicons name="bag-check-outline" size={22} color="#fff" />
         <Text style={styles.swipeActionText}>Mark{'\n'}Sold</Text>
       </TouchableOpacity>
     </View>
@@ -97,7 +97,7 @@ function SwipeableListingRow({ listing, onMarkSold, onStillAvailable, onPress })
         onPress={() => { swipeRef.current?.close(); onStillAvailable(listing.id); }}
         activeOpacity={0.85}
       >
-        <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
+        <Ionicons name="checkmark-circle-outline" size={22} color="#fff" />
         <Text style={styles.swipeActionText}>Still{'\n'}Available</Text>
       </TouchableOpacity>
       <TouchableOpacity
@@ -105,7 +105,7 @@ function SwipeableListingRow({ listing, onMarkSold, onStillAvailable, onPress })
         onPress={() => { swipeRef.current?.close(); onMarkSold(listing); }}
         activeOpacity={0.85}
       >
-        <Ionicons name="checkmark-done-circle" size={18} color="#fff" />
+        <Ionicons name="bag-check-outline" size={22} color="#fff" />
         <Text style={styles.swipeActionText}>Mark{'\n'}Sold</Text>
       </TouchableOpacity>
     </View>
@@ -1221,28 +1221,30 @@ const styles = StyleSheet.create({
   listingSwipeActions: {
     flexDirection: 'row',
     alignSelf: 'stretch',
-    marginLeft: 4,
-    gap: 2,
+    marginLeft: 10,
   },
   swipeStillAvail: {
-    width: 90,
-    backgroundColor: colors.primary,
+    width: 92,
+    backgroundColor: '#34C759',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
   },
   swipeMarkSold: {
-    width: 90,
-    backgroundColor: '#4A5568',
+    width: 92,
+    backgroundColor: '#FF3B30',
+    borderTopRightRadius: 14,
+    borderBottomRightRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
+    overflow: 'hidden',
   },
   swipeActionText: {
     color: '#fff',
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
     textAlign: 'center',
-    lineHeight: 13,
+    letterSpacing: 0.1,
   },
 });
