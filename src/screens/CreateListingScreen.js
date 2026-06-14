@@ -26,6 +26,7 @@ export default function CreateListingScreen({ navigation }) {
   const [photos, setPhotos] = useState([]);
   const [gpsCoords, setGpsCoords] = useState(null);
   const [publishing, setPublishing] = useState(false);
+  const [publishError, setPublishError] = useState('');
 
   // Standard listing fields
   const [title, setTitle] = useState('');
@@ -102,6 +103,7 @@ export default function CreateListingScreen({ navigation }) {
   };
 
   const handlePublish = async () => {
+    setPublishError('');
     const cleanPrice = sanitizePrice(price);
 
     let cleanTitle, cleanDesc;
@@ -115,7 +117,7 @@ export default function CreateListingScreen({ navigation }) {
     }
 
     const errors = validateListingPayload({ title: cleanTitle, price: cleanPrice, description: cleanDesc, category });
-    if (errors.length > 0) { Alert.alert('Missing info', errors[0]); return; }
+    if (errors.length > 0) { setPublishError(errors[0]); return; }
 
     setPublishing(true);
     try {
@@ -143,7 +145,7 @@ export default function CreateListingScreen({ navigation }) {
       navigation.goBack();
     } catch (e) {
       console.error('[CreateListing] publish failed:', e);
-      Alert.alert('Upload failed', e?.message || 'Could not publish listing. Please try again.');
+      setPublishError(e?.message || 'Could not publish. Please check your connection and try again.');
     } finally {
       setPublishing(false);
     }
@@ -417,6 +419,13 @@ export default function CreateListingScreen({ navigation }) {
               </>
             )}
 
+            {publishError ? (
+              <View style={styles.errorBanner}>
+                <Ionicons name="alert-circle" size={18} color="#fff" />
+                <Text style={styles.errorBannerText}>{publishError}</Text>
+              </View>
+            ) : null}
+
             <View style={styles.tip}>
               <Ionicons name="bulb-outline" size={16} color={colors.warning} />
               <Text style={styles.tipText}>
@@ -532,6 +541,11 @@ const styles = StyleSheet.create({
   },
   ticketBannerText: { fontSize: 13, fontWeight: '600', color: '#9B59B6' },
 
+  errorBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: colors.danger, borderRadius: 12, padding: 14, marginBottom: 16,
+  },
+  errorBannerText: { flex: 1, fontSize: 13, fontWeight: '600', color: '#fff', lineHeight: 18 },
   tip: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 8,
     backgroundColor: '#FFF8E8', borderRadius: 12, padding: 12, marginBottom: 20,

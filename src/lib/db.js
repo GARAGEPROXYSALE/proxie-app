@@ -57,25 +57,25 @@ export async function insertListing(listing) {
 
   // seller_id always comes from the verified session — never from the client payload
   // is_boosted, is_promoted, seller_type (store) are set server-side or by admins only
-  const { data, error } = await supabase
-    .from('listings')
-    .insert({
-      seller_id: session.user.id,
-      title: listing.title,
-      price: listing.price,
-      description: listing.description,
-      condition: listing.condition || 'Good',
-      category: listing.category,
-      photos: listing.photos || [],
-      latitude: listing.latitude,
-      longitude: listing.longitude,
-      address: listing.address,
-    })
-    .select()
-    .single();
+  const payload = {
+    seller_id: session.user.id,
+    title: listing.title,
+    price: listing.price,
+    description: listing.description,
+    category: listing.category,
+    photos: listing.photos || [],
+    latitude: listing.latitude,
+    longitude: listing.longitude,
+    address: listing.address,
+  };
 
-  if (error) throw error;
-  return normalizeListingFromDB(data);
+  // Try with condition first; if the column doesn't exist in this DB, retry without it
+  let result = await supabase.from('listings').insert({ ...payload, condition: listing.condition || 'Good' }).select().single();
+  if (result.error?.message?.includes('condition')) {
+    result = await supabase.from('listings').insert(payload).select().single();
+  }
+  if (result.error) throw result.error;
+  return normalizeListingFromDB(result.data);
 }
 
 export async function updateListingStatus(listingId, status) {
