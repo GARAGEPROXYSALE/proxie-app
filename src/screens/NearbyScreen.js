@@ -1,7 +1,9 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions, RefreshControl, Linking,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions, RefreshControl, Linking, Platform,
 } from 'react-native';
+import Slider from '@react-native-community/slider';
+import * as Haptics from 'expo-haptics';
 
 const SCREEN_H = Dimensions.get('window').height;
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,8 +16,8 @@ import { getUserLocation } from '../lib/location';
 import colors from '../theme/colors';
 import { categories } from '../data/mockData';
 
-// Height of the two filter rows (radius + category) + top safe area
-const FILTERS_HEIGHT = 88;
+// Height of the single category filter row + top safe area
+const FILTERS_HEIGHT = 44;
 
 export default function NearbyScreen({ navigation }) {
   const {
@@ -78,6 +80,24 @@ export default function NearbyScreen({ navigation }) {
 
   const filtersTop = insets.top;
 
+  const snapIndex = useMemo(() => {
+    const idx = PROXIMITY_SNAPS.findIndex((m) => Math.abs(m - proximityMiles) < 0.001);
+    return idx >= 0 ? idx : 0;
+  }, [proximityMiles]);
+
+  const lastSnapIndex = useRef(snapIndex);
+
+  const handleSliderChange = useCallback((value) => {
+    const index = Math.round(value);
+    if (index !== lastSnapIndex.current) {
+      lastSnapIndex.current = index;
+      setProximityMiles(PROXIMITY_SNAPS[index]);
+      if (Platform.OS === 'android') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      }
+    }
+  }, [setProximityMiles]);
+
   return (
     <View style={styles.root}>
 
@@ -135,9 +155,27 @@ export default function NearbyScreen({ navigation }) {
                 maxMiles={proximityMiles}
                 onItemPress={(item) => navigation.navigate('ItemDetail', { item })}
               />
+              <View style={styles.radiusSliderContainer}>
+                <Text style={styles.radiusLabel}>Within {proximityLabel(proximityMiles)}</Text>
+                <Slider
+                  style={styles.radiusSlider}
+                  minimumValue={0}
+                  maximumValue={PROXIMITY_SNAPS.length - 1}
+                  step={1}
+                  value={snapIndex}
+                  onValueChange={handleSliderChange}
+                  minimumTrackTintColor={colors.primary}
+                  maximumTrackTintColor={colors.border}
+                  thumbTintColor={colors.primary}
+                />
+                <View style={styles.sliderEndLabels}>
+                  <Text style={styles.sliderEndLabel}>{proximityLabel(PROXIMITY_SNAPS[0])}</Text>
+                  <Text style={styles.sliderEndLabel}>{proximityLabel(PROXIMITY_SNAPS[PROXIMITY_SNAPS.length - 1])}</Text>
+                </View>
+              </View>
               <View style={styles.scanStatus}>
                 <Text style={styles.scanCount}>
-                  {filteredListings.length} {isHost ? 'listings' : 'items'} within {proximityLabel(proximityMiles)}
+                  {filteredListings.length} {isHost ? 'listings' : 'items'} nearby
                 </Text>
                 <Text style={styles.scanSub}>
                   {isHost ? 'Tap a dot to view a listing' : 'Tap a dot to see the item'}
@@ -196,7 +234,7 @@ export default function NearbyScreen({ navigation }) {
       {/* Location denied banner */}
       {locationDenied && !userLocation && (
         <TouchableOpacity
-          style={[styles.locationBanner, { top: filtersTop + 88 }]}
+          style={[styles.locationBanner, { top: filtersTop + FILTERS_HEIGHT }]}
           onPress={() => { Linking.openSettings(); setLocationDenied(false); }}
           activeOpacity={0.8}
         >
@@ -211,26 +249,6 @@ export default function NearbyScreen({ navigation }) {
         style={[styles.filtersWrapper, { top: filtersTop }]}
         pointerEvents="box-none"
       >
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterRow}
-        >
-          <Ionicons name="location" size={13} color={colors.primary} />
-          <Text style={styles.filterLabel}>Radius</Text>
-          {PROXIMITY_SNAPS.map((m) => (
-            <TouchableOpacity
-              key={m}
-              style={[styles.chip, Math.abs(proximityMiles - m) < 0.001 && styles.chipActive]}
-              onPress={() => setProximityMiles(m)}
-            >
-              <Text style={[styles.chipText, Math.abs(proximityMiles - m) < 0.001 && styles.chipTextActive]}>
-                {proximityLabel(m)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -337,12 +355,6 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     gap: 7,
   },
-  filterLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    marginRight: 2,
-  },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -420,8 +432,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  radiusSliderContainer: {
+    width: '100%',
+    paddingHorizontal: 12,
+    paddingTop: 14,
+    alignItems: 'center',
+  },
+  radiusLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.primary,
+    marginBottom: 4,
+  },
+  radiusSlider: {
+    width: '100%',
+    height: 40,
+  },
+  sliderEndLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    paddingHorizontal: 4,
+    marginTop: -4,
+  },
+  sliderEndLabel: {
+    fontSize: 11,
+    color: colors.textLight,
+    fontWeight: '500',
+  },
   scanStatus: {
-    marginTop: 14,
+    marginTop: 10,
     alignItems: 'center',
   },
   scanCount: {

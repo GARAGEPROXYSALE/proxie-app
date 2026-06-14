@@ -38,7 +38,7 @@ function SectionCard({ title, icon, onPress, children, badge }) {
 // ─────────────────────────────────────────────────────────────
 
 function HostView({ navigation, user, listings, messages, onScreenScroll, openMarkSoldModal, insets, signOut, renewListing, pickUpListing, repostListing }) {
-  const myListings = listings.filter((l) => l.seller.id === 'me');
+  const myListings = listings.filter((l) => l.seller.id === user.id || l.seller.id === 'me');
   const unreadCount = messages.reduce((acc, m) => acc + m.unread, 0);
   const savedItems = listings.filter((l) => l.saved);
   const activeListings = myListings.filter((l) => !l.sold && !l.pickedUp && l.status !== 'expired');
@@ -58,7 +58,7 @@ function HostView({ navigation, user, listings, messages, onScreenScroll, openMa
         <View style={styles.topBarActions}>
           <TouchableOpacity
             style={styles.iconBtn}
-            onPress={() => navigation.navigate('Wishlist')}
+            onPress={() => navigation.navigate('Saved')}
           >
             <Ionicons name="bookmark-outline" size={22} color={colors.primary} />
           </TouchableOpacity>
@@ -347,16 +347,6 @@ function HostView({ navigation, user, listings, messages, onScreenScroll, openMa
           </SectionCard>
         </View>
 
-        {/* List an Item CTA */}
-        <TouchableOpacity
-          style={styles.addListingBtn}
-          onPress={() => navigation.navigate('CreateListing')}
-          activeOpacity={0.85}
-        >
-          <Ionicons name="add" size={20} color="#fff" />
-          <Text style={styles.addListingText}>List an Item</Text>
-        </TouchableOpacity>
-
         {/* Account footer */}
         <View style={styles.accountSection}>
           <TouchableOpacity
@@ -367,6 +357,20 @@ function HostView({ navigation, user, listings, messages, onScreenScroll, openMa
             <View style={styles.accountRowLeft}>
               <Ionicons name="settings-outline" size={18} color={colors.textSecondary} />
               <Text style={styles.accountRowLabel}>Settings</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.textLight} />
+          </TouchableOpacity>
+
+          <View style={styles.accountDivider} />
+
+          <TouchableOpacity
+            style={styles.accountRow}
+            onPress={() => navigation.navigate('Legal', { tab: 'terms' })}
+            activeOpacity={0.7}
+          >
+            <View style={styles.accountRowLeft}>
+              <Ionicons name="document-text-outline" size={18} color={colors.textSecondary} />
+              <Text style={styles.accountRowLabel}>Terms &amp; Privacy</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color={colors.textLight} />
           </TouchableOpacity>
@@ -390,8 +394,17 @@ function HostView({ navigation, user, listings, messages, onScreenScroll, openMa
           </TouchableOpacity>
         </View>
 
-        <View style={{ height: 20 }} />
+        <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* Floating + button (Threads-style FAB) */}
+      <TouchableOpacity
+        style={[styles.fab, { bottom: insets.bottom + 80 }]}
+        onPress={() => navigation.navigate('CreateListing')}
+        activeOpacity={0.88}
+      >
+        <Ionicons name="add" size={28} color="#fff" />
+      </TouchableOpacity>
     </View>
   );
 }
@@ -550,6 +563,20 @@ function GuestView({ navigation, user, listings, messages, onScreenScroll, inset
             <View style={styles.accountRowLeft}>
               <Ionicons name="settings-outline" size={18} color={colors.textSecondary} />
               <Text style={styles.accountRowLabel}>Settings</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.textLight} />
+          </TouchableOpacity>
+
+          <View style={styles.accountDivider} />
+
+          <TouchableOpacity
+            style={styles.accountRow}
+            onPress={() => navigation.navigate('Legal', { tab: 'terms' })}
+            activeOpacity={0.7}
+          >
+            <View style={styles.accountRowLeft}>
+              <Ionicons name="document-text-outline" size={18} color={colors.textSecondary} />
+              <Text style={styles.accountRowLabel}>Terms &amp; Privacy</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color={colors.textLight} />
           </TouchableOpacity>
@@ -948,23 +975,22 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
 
-  // List Item CTA
-  addListingBtn: {
+  // Floating action button
+  fab: {
+    position: 'absolute',
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: colors.primary,
-    borderRadius: 16,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
-    gap: 8,
-    marginTop: 4,
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 6,
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  addListingText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 
   // Guest-specific
   guestGreetCard: {
