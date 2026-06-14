@@ -29,6 +29,7 @@ import SettingsScreen from './src/screens/SettingsScreen';
 import SavedScreen from './src/screens/SavedScreen';
 import SellerProfileScreen from './src/screens/SellerProfileScreen';
 import SignInScreen from './src/screens/SignInScreen';
+import EmailVerifyScreen from './src/screens/EmailVerifyScreen';
 import EditProfileScreen from './src/screens/EditProfileScreen';
 import WishlistScreen from './src/screens/WishlistScreen';
 import StorefrontScreen from './src/screens/StorefrontScreen';
@@ -46,6 +47,7 @@ function OnboardingNavigator() {
       <OnboardingStack.Screen name="SignUp" component={SignUpScreen} />
       <OnboardingStack.Screen name="SignIn" component={SignInScreen} />
       <OnboardingStack.Screen name="GuestMode" component={GuestModeScreen} />
+      <OnboardingStack.Screen name="EmailVerify" component={EmailVerifyScreen} />
       <OnboardingStack.Screen name="LocationPerm" component={LocationPermScreen} />
       <OnboardingStack.Screen name="Legal" component={LegalScreen} />
     </OnboardingStack.Navigator>

@@ -9,6 +9,45 @@ import { useApp } from '../context/AppContext';
 import { supabase } from '../lib/supabase';
 import colors from '../theme/colors';
 
+function OAuthDivider() {
+  return (
+    <View style={oauthStyles.dividerRow}>
+      <View style={oauthStyles.dividerLine} />
+      <Text style={oauthStyles.dividerText}>or continue with</Text>
+      <View style={oauthStyles.dividerLine} />
+    </View>
+  );
+}
+
+function OAuthButtons({ onError }) {
+  const redirectTo = Platform.OS === 'web' ? window.location.origin : 'proxie://auth-callback';
+
+  const handleOAuth = async (provider) => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo },
+    });
+    if (error && onError) onError(error.message);
+  };
+
+  return (
+    <View style={oauthStyles.row}>
+      <TouchableOpacity style={oauthStyles.btn} onPress={() => handleOAuth('google')} activeOpacity={0.8}>
+        <Ionicons name="logo-google" size={20} color="#EA4335" />
+        <Text style={oauthStyles.btnText}>Google</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={oauthStyles.btn} onPress={() => handleOAuth('apple')} activeOpacity={0.8}>
+        <Ionicons name="logo-apple" size={20} color={colors.text} />
+        <Text style={oauthStyles.btnText}>Apple</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={oauthStyles.btn} onPress={() => handleOAuth('facebook')} activeOpacity={0.8}>
+        <Ionicons name="logo-facebook" size={20} color="#1877F2" />
+        <Text style={oauthStyles.btnText}>Facebook</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 export default function SignInScreen({ navigation }) {
   const { signIn } = useApp();
   const insets = useSafeAreaInsets();
@@ -69,7 +108,6 @@ export default function SignInScreen({ navigation }) {
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        {/* Header */}
         <View style={[styles.header, { paddingTop: insets.top > 0 ? 0 : 12 }]}>
           <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
             <Ionicons name="chevron-back" size={24} color={colors.text} />
@@ -81,19 +119,13 @@ export default function SignInScreen({ navigation }) {
           <View style={{ width: 40 }} />
         </View>
 
-        <ScrollView
-          style={styles.scroll}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
+        <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           <View style={styles.titleBlock}>
             <Text style={styles.title}>Welcome back</Text>
             <Text style={styles.subtitle}>Sign in to your Proxie account.</Text>
           </View>
 
           <View style={styles.form}>
-
-            {/* Inline error */}
             {error ? (
               <View style={styles.errorBanner}>
                 <Ionicons name="alert-circle-outline" size={18} color={colors.danger} />
@@ -101,7 +133,10 @@ export default function SignInScreen({ navigation }) {
               </View>
             ) : null}
 
-            {/* Email */}
+            {/* Social login */}
+            <OAuthButtons onError={setError} />
+            <OAuthDivider />
+
             <View style={styles.field}>
               <Text style={styles.label}>Email</Text>
               <TextInput
@@ -117,7 +152,6 @@ export default function SignInScreen({ navigation }) {
               />
             </View>
 
-            {/* Password */}
             <View style={styles.field}>
               <Text style={styles.label}>Password</Text>
               <View style={styles.passwordWrap}>
@@ -131,22 +165,14 @@ export default function SignInScreen({ navigation }) {
                   autoComplete="password"
                   maxLength={100}
                 />
-                <TouchableOpacity
-                  style={styles.eyeBtn}
-                  onPress={() => setShowPassword((v) => !v)}
-                >
-                  <Ionicons
-                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                    size={20}
-                    color={colors.textLight}
-                  />
+                <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowPassword((v) => !v)}>
+                  <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.textLight} />
                 </TouchableOpacity>
               </View>
             </View>
 
-            {/* Submit */}
             <TouchableOpacity
-              style={[styles.submitBtn, (!canSubmit) && styles.submitBtnDisabled]}
+              style={[styles.submitBtn, !canSubmit && styles.submitBtnDisabled]}
               onPress={handleSubmit}
               disabled={!canSubmit}
               activeOpacity={0.85}
@@ -161,12 +187,7 @@ export default function SignInScreen({ navigation }) {
               )}
             </TouchableOpacity>
 
-            {/* Create account */}
-            <TouchableOpacity
-              style={styles.linkBtn}
-              onPress={() => navigation.navigate('SignUp')}
-              activeOpacity={0.7}
-            >
+            <TouchableOpacity style={styles.linkBtn} onPress={() => navigation.navigate('SignUp')} activeOpacity={0.7}>
               <Text style={styles.linkText}>Don't have an account? <Text style={{ color: colors.primary, fontWeight: '700' }}>Create one</Text></Text>
             </TouchableOpacity>
 
@@ -178,16 +199,31 @@ export default function SignInScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
-
-  header: {
+const oauthStyles = StyleSheet.create({
+  row: { flexDirection: 'row', gap: 10, marginBottom: 20 },
+  btn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-    paddingTop: 8,
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: colors.cardBackground,
+    borderRadius: 14,
+    paddingVertical: 13,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  btnText: { fontSize: 13, fontWeight: '600', color: colors.text },
+  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
+  dividerText: { fontSize: 12, color: colors.textLight, fontWeight: '500' },
+});
+
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.background },
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingBottom: 8, paddingTop: 8,
   },
   backBtn: {
     width: 40, height: 40, borderRadius: 20,
@@ -204,20 +240,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08, shadowRadius: 4, elevation: 2,
   },
   headerBadgeText: { fontSize: 13, fontWeight: '700', color: colors.primary },
-
   scroll: { flex: 1 },
-
-  titleBlock: {
-    paddingHorizontal: 24, paddingTop: 8, paddingBottom: 24,
-  },
-  title: {
-    fontSize: 26, fontWeight: '800', color: colors.text,
-    marginBottom: 8, letterSpacing: -0.3,
-  },
+  titleBlock: { paddingHorizontal: 24, paddingTop: 8, paddingBottom: 24 },
+  title: { fontSize: 26, fontWeight: '800', color: colors.text, marginBottom: 8, letterSpacing: -0.3 },
   subtitle: { fontSize: 15, color: colors.textSecondary, lineHeight: 22 },
-
   form: { paddingHorizontal: 24 },
-
   errorBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: colors.danger + '12',
@@ -225,7 +252,6 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.danger + '30',
   },
   errorText: { flex: 1, fontSize: 13, color: colors.danger, fontWeight: '500', lineHeight: 18 },
-
   field: { marginBottom: 20 },
   label: { fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 8 },
   input: {
@@ -234,25 +260,18 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.border,
   },
   inputError: { borderColor: colors.danger + '60' },
-
   passwordWrap: { position: 'relative' },
   passwordInput: { paddingRight: 48 },
-  eyeBtn: {
-    position: 'absolute', right: 14, top: 0, bottom: 0,
-    justifyContent: 'center', alignItems: 'center',
-  },
-
+  eyeBtn: { position: 'absolute', right: 14, top: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' },
   submitBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 8, backgroundColor: colors.primary, borderRadius: 16,
     paddingVertical: 16,
     shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3, shadowRadius: 10, elevation: 6,
-    marginBottom: 12,
+    shadowOpacity: 0.3, shadowRadius: 10, elevation: 6, marginBottom: 12,
   },
   submitBtnDisabled: { backgroundColor: colors.textLight, shadowOpacity: 0 },
   submitText: { fontSize: 16, fontWeight: '700', color: '#fff' },
-
   linkBtn: { alignItems: 'center', paddingVertical: 12 },
   linkText: { fontSize: 13, color: colors.textSecondary, fontWeight: '500' },
 });
