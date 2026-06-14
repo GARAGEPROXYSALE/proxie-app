@@ -49,7 +49,7 @@ function SafeMeetupBanner({ onDismiss }) {
 
 export default function ChatScreen({ navigation, route }) {
   const { thread, item, prefill } = route.params;
-  const { sendMessage, messages, user, markRead } = useApp();
+  const { sendMessage, messages, user, markRead, openRatingPrompt } = useApp();
   const [text, setText] = useState(prefill || '');
   const [menuOpen, setMenuOpen] = useState(false);
   const [offerOpen, setOfferOpen] = useState(false);
@@ -72,6 +72,21 @@ export default function ChatScreen({ navigation, route }) {
       if (!val) setShowSafetyBanner(true);
     }).catch(() => {});
   }, []);
+
+  // Check if seller left a pending rating for us (buyer flow)
+  useEffect(() => {
+    const key = `proxie_pending_buyer_rating_${thread.id}`;
+    AsyncStorage.getItem(key).then((raw) => {
+      if (!raw) return;
+      try {
+        const { item: ratedItem, sellerName } = JSON.parse(raw);
+        AsyncStorage.removeItem(key).catch(() => {});
+        setTimeout(() => {
+          openRatingPrompt({ item: ratedItem, buyerName: sellerName, role: 'buyer' });
+        }, 1200);
+      } catch {}
+    }).catch(() => {});
+  }, [thread.id]);
 
   const dismissSafetyBanner = () => {
     setShowSafetyBanner(false);

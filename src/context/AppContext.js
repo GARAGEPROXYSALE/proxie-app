@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { Animated } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { mockListings, currentUser, mockMessages } from '../data/mockData';
 import { supabase } from '../lib/supabase';
 import {
@@ -371,25 +372,45 @@ export function AppProvider({ children }) {
   // ── Sold flow ────────────────────────────────────────────────
 
   const openMarkSoldModal = useCallback((item) => {
-    setMarkSoldModal({ visible: true, item });
+    // Collect everyone who has a thread about this listing
+    const buyers = messagesRef.current
+      .filter((t) => String(t.listingId) === String(item?.id))
+      .map((t) => ({ id: t.with?.id, name: t.with?.name, threadId: t.id }))
+      .filter((b) => b.id && b.name);
+    setMarkSoldModal({ visible: true, item, buyers });
   }, []);
 
   const closeMarkSoldModal = useCallback(() => {
-    setMarkSoldModal({ visible: false, item: null });
+    setMarkSoldModal({ visible: false, item: null, buyers: [] });
   }, []);
 
-  const confirmMarkSold = useCallback((itemId, buyerName) => {
+  const confirmMarkSold = useCallback((itemId, buyer) => {
+    // buyer: { id, name, threadId } | { name } for free-text fallback
+    const buyerName = buyer?.name || '';
     let soldItem;
     setListings((prev) => {
       soldItem = prev.find((l) => l.id === itemId);
-      return prev.map((l) => l.id === itemId ? { ...l, sold: true, active: false, status: 'sold', buyerName: buyerName || null } : l);
+      return prev.map((l) =>
+        l.id === itemId
+          ? { ...l, sold: true, active: false, status: 'sold', buyerName: buyerName || null }
+          : l
+      );
     });
     setUser((prev) => ({ ...prev, sales: prev.sales + 1 }));
-    setMarkSoldModal({ visible: false, item: null });
+    setMarkSoldModal({ visible: false, item: null, buyers: [] });
+
+    // After seller rates, write a pending rating for the buyer to pick up in ChatScreen
+    if (buyer?.threadId) {
+      AsyncStorage.setItem(
+        `proxie_pending_buyer_rating_${buyer.threadId}`,
+        JSON.stringify({ item: soldItem, sellerName: user?.name || 'the seller' })
+      ).catch(() => {});
+    }
+
     setTimeout(() => {
       setRatingPrompt({ visible: true, item: soldItem, buyerName, role: 'seller' });
     }, 600);
-  }, []);
+  }, [user?.name]);
 
   const submitRating = useCallback((vote) => {
     if (vote === 'up') {
@@ -403,6 +424,10 @@ export function AppProvider({ children }) {
 
   const dismissRating = useCallback(() => {
     setRatingPrompt({ visible: false, item: null, buyerName: '', role: 'seller' });
+  }, []);
+
+  const openRatingPrompt = useCallback(({ item, buyerName, role }) => {
+    setRatingPrompt({ visible: true, item, buyerName, role });
   }, []);
 
   // ── Listings ─────────────────────────────────────────────────
@@ -730,6 +755,7 @@ export function AppProvider({ children }) {
         ratingPrompt,
         submitRating,
         dismissRating,
+        openRatingPrompt,
         // Tab bar
         tabBarAnim,
         onScreenScroll,
