@@ -64,7 +64,7 @@ function HostView({ navigation, user, listings, messages, onScreenScroll, openMa
       setFabActive(shouldShow);
       Animated.timing(fabOpacity, {
         toValue: shouldShow ? 1 : 0,
-        duration: 180,
+        duration: 80,
         useNativeDriver: true,
       }).start();
     }
