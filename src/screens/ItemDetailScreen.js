@@ -20,7 +20,7 @@ export default function ItemDetailScreen({ navigation, route }) {
   const { item } = route.params;
   const {
     startConversation, openCollectionModal, listings,
-    openMarkSoldModal, userType, signOut, tabBarAnim,
+    openMarkSoldModal, userType, user, signOut, tabBarAnim,
     incrementViews, renewListing, pickUpListing,
   } = useApp();
 
@@ -38,7 +38,7 @@ export default function ItemDetailScreen({ navigation, route }) {
 
   const liveItem = listings.find((l) => l.id === item.id) || item;
   const saved = liveItem.saved;
-  const isOwnListing = liveItem.seller?.id === 'me';
+  const isOwnListing = liveItem.seller?.id === user?.id || liveItem.seller?.id === 'me';
   const isSold = liveItem.sold;
   const isPickedUp = liveItem.pickedUp;
   const isGone = isSold || isPickedUp;
@@ -48,13 +48,13 @@ export default function ItemDetailScreen({ navigation, route }) {
     openCollectionModal(liveItem, () => navigation.navigate('Saved'));
   };
 
-  const handleMessage = () => {
+  const handleMessage = async () => {
     if (userType === 'guest') {
       setShowGuestBanner(true);
       return;
     }
     try {
-      const thread = startConversation(liveItem);
+      const thread = await startConversation(liveItem);
       navigation.navigate('Chat', { thread, item: liveItem });
     } catch (e) {
       console.error('[ItemDetail] Chat navigation failed:', e);

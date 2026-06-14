@@ -13,7 +13,7 @@ import colors from '../theme/colors';
 
 export default function ChatScreen({ navigation, route }) {
   const { thread, item, prefill } = route.params;
-  const { sendMessage, messages } = useApp();
+  const { sendMessage, messages, user } = useApp();
   const [text, setText] = useState(prefill || '');
   const [menuOpen, setMenuOpen] = useState(false);
   const [offerOpen, setOfferOpen] = useState(false);
@@ -98,7 +98,7 @@ export default function ChatScreen({ navigation, route }) {
   );
 
   const renderMessage = ({ item: msg }) => {
-    const isMe = msg.from === 'me';
+    const isMe = msg.from === user?.id || msg.from === 'me';
     return (
       <View style={[styles.msgRow, isMe && styles.msgRowMe]}>
         {!isMe && (
