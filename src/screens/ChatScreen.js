@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, FlatList,
   StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform,
@@ -13,13 +13,16 @@ import colors from '../theme/colors';
 
 export default function ChatScreen({ navigation, route }) {
   const { thread, item, prefill } = route.params;
-  const { sendMessage, messages, user } = useApp();
+  const { sendMessage, messages, user, markRead } = useApp();
   const [text, setText] = useState(prefill || '');
   const [menuOpen, setMenuOpen] = useState(false);
   const [offerOpen, setOfferOpen] = useState(false);
   const [meetupOpen, setMeetupOpen] = useState(false);
   const [sellerSheetOpen, setSellerSheetOpen] = useState(false);
   const flatRef = useRef(null);
+
+  // Clear unread count when conversation opens
+  useEffect(() => { markRead(thread.id); }, [thread.id]);
 
   // Always read latest thread from context
   const currentThread = messages.find((m) => m.id === thread.id) || thread;

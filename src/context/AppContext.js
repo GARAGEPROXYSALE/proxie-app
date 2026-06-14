@@ -503,6 +503,16 @@ export function AppProvider({ children }) {
 
   // ── Thread management ────────────────────────────────────────
 
+  const markRead = useCallback((threadId) => {
+    setMessages((prev) => {
+      const updated = prev.map((t) =>
+        t.id === threadId ? { ...t, unread: 0, markedUnread: false } : t
+      );
+      messagesRef.current = updated;
+      return updated;
+    });
+  }, []);
+
   const markUnread = useCallback((threadId) => {
     setMessages((prev) => {
       const thread = prev.find((t) => t.id === threadId);
@@ -721,6 +731,7 @@ export function AppProvider({ children }) {
         userLocation,
         setUserLocation,
         // Thread management
+        markRead,
         markUnread,
         pinThread,
         flagThread,
