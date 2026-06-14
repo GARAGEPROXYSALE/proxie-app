@@ -136,7 +136,7 @@ function SwipeableListingRow({ listing, onMarkSold, onStillAvailable }) {
 // HOST VIEW
 // ─────────────────────────────────────────────────────────────
 
-function HostView({ navigation, user, listings, messages, onScreenScroll, openMarkSoldModal, insets, signOut, renewListing, pickUpListing, repostListing }) {
+function HostView({ navigation, user, listings, messages, onScreenScroll, openMarkSoldModal, insets, signOut, renewListing }) {
   const myListings = listings.filter((l) => l.seller.id === user.id || l.seller.id === 'me');
   const unreadCount = messages.reduce((acc, m) => acc + m.unread, 0);
   const savedItems = listings.filter((l) => l.saved);
@@ -741,12 +741,12 @@ function GuestView({ navigation, user, listings, messages, onScreenScroll, inset
 
 export default function IdentityScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const { user, listings, messages, onScreenScroll, openMarkSoldModal, userType, signOut, renewListing, pickUpListing, repostListing } = useApp();
+  const { user, listings, messages, onScreenScroll, openMarkSoldModal, userType, signOut, renewListing } = useApp();
 
   const sharedProps = { navigation, user, listings, messages, onScreenScroll, insets, signOut };
 
   if (userType === 'host') {
-    return <HostView {...sharedProps} openMarkSoldModal={openMarkSoldModal} renewListing={renewListing} pickUpListing={pickUpListing} repostListing={repostListing} />;
+    return <HostView {...sharedProps} openMarkSoldModal={openMarkSoldModal} renewListing={renewListing} />;
   }
   return <GuestView {...sharedProps} />;
 }
@@ -977,25 +977,6 @@ const styles = StyleSheet.create({
   staleName: { fontSize: 13, fontWeight: '600', color: colors.text },
   staleAge: { fontSize: 11, color: colors.textSecondary, marginTop: 1 },
   stalePrompt: { fontSize: 11, color: colors.warning, fontWeight: '600', marginTop: 3 },
-  staleActions: { paddingRight: 10, gap: 5, alignItems: 'flex-end' },
-  staleSoldBtn: {
-    backgroundColor: colors.success, borderRadius: 8,
-    paddingHorizontal: 10, paddingVertical: 5,
-  },
-  staleSoldText: { fontSize: 11, fontWeight: '700', color: '#fff' },
-  staleStillBtn: {
-    backgroundColor: colors.background, borderRadius: 8,
-    paddingHorizontal: 10, paddingVertical: 5,
-    borderWidth: 1, borderColor: colors.border,
-  },
-  staleStillText: { fontSize: 11, fontWeight: '600', color: colors.textSecondary },
-  stalePickedUpBtn: {
-    backgroundColor: '#A0522D12', borderRadius: 8,
-    paddingHorizontal: 10, paddingVertical: 5,
-    borderWidth: 1, borderColor: '#A0522D30',
-  },
-  stalePickedUpText: { fontSize: 11, fontWeight: '600', color: '#A0522D' },
-
   // My Listings section (with tab switcher)
   myListingsSection: {
     backgroundColor: colors.cardBackground,
@@ -1067,42 +1048,6 @@ const styles = StyleSheet.create({
   myListingMeta: {
     fontSize: 11,
     color: colors.textSecondary,
-  },
-
-  // Expired listings
-  expiredListingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  expiredImage: {
-    opacity: 0.5,
-  },
-  expiredBadge: {
-    backgroundColor: colors.danger + '20',
-    borderRadius: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    alignSelf: 'flex-start',
-  },
-  expiredBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.danger,
-  },
-  repostBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.primary,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  repostBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#fff',
   },
 
   // Floating action button

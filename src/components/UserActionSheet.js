@@ -26,11 +26,11 @@ export default function UserActionSheet({ visible, onClose, seller, listing, nav
     navigation.navigate('SellerProfile', { seller, listing });
   };
 
-  const handleMessage = () => {
+  const handleMessage = async () => {
     close();
     if (!listing) return;
     try {
-      const thread = startConversation(listing);
+      const thread = await startConversation(listing);
       navigation.navigate('Chat', { thread, item: listing });
     } catch (e) {
       console.error('[UserActionSheet] message nav failed:', e);

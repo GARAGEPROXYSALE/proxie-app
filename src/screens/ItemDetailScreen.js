@@ -21,7 +21,7 @@ export default function ItemDetailScreen({ navigation, route }) {
   const {
     startConversation, openCollectionModal, listings,
     openMarkSoldModal, userType, user, signOut, tabBarAnim,
-    incrementViews, renewListing, pickUpListing,
+    incrementViews, renewListing,
   } = useApp();
 
   // Show inline guest gate instead of Alert (which browsers block silently)
@@ -461,10 +461,6 @@ const styles = StyleSheet.create({
   ownerActions: {
     gap: 10,
   },
-  ownerSecondaryRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
   stillAvailBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -481,24 +477,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.success,
   },
-  pickedUpBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    borderRadius: 14,
-    backgroundColor: '#A0522D12',
-    borderWidth: 1.5,
-    borderColor: '#A0522D40',
-  },
-  pickedUpText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#A0522D',
-  },
-
   // Action buttons
   messageBtn: {
     flexDirection: 'row',

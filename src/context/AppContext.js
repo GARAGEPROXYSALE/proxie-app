@@ -224,7 +224,7 @@ export function AppProvider({ children }) {
 
   // ── "Still for sale?" — stale own listings (> 6h old) ───────
   const staleListing = listings.find(
-    (l) => l.seller?.id === 'me' && !l.sold && !l.pickedUp && l.active && isStale(l.createdAt)
+    (l) => (l.seller?.id === user?.id || l.seller?.id === 'me') && !l.sold && !l.pickedUp && l.active && isStale(l.createdAt)
   );
 
   // ── Tab bar scroll-hide animation (1=visible, 0=hidden) ──────
@@ -358,16 +358,17 @@ export function AppProvider({ children }) {
   }, []);
 
   const confirmMarkSold = useCallback((itemId, buyerName) => {
-    setListings((prev) =>
-      prev.map((l) => l.id === itemId ? { ...l, sold: true, active: false, status: 'sold', buyerName: buyerName || null } : l)
-    );
+    let soldItem;
+    setListings((prev) => {
+      soldItem = prev.find((l) => l.id === itemId);
+      return prev.map((l) => l.id === itemId ? { ...l, sold: true, active: false, status: 'sold', buyerName: buyerName || null } : l);
+    });
     setUser((prev) => ({ ...prev, sales: prev.sales + 1 }));
     setMarkSoldModal({ visible: false, item: null });
-    const soldItem = listings.find((l) => l.id === itemId);
     setTimeout(() => {
       setRatingPrompt({ visible: true, item: soldItem, buyerName, role: 'seller' });
     }, 600);
-  }, [listings]);
+  }, []);
 
   const submitRating = useCallback((vote) => {
     if (vote === 'up') {

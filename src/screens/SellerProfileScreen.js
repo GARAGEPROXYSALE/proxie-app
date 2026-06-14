@@ -47,10 +47,10 @@ export default function SellerProfileScreen({ navigation, route }) {
     (l) => l.seller?.id === seller.id && l.active && !l.sold
   );
 
-  const handleMessage = () => {
+  const handleMessage = async () => {
     if (!listing) return;
     try {
-      const thread = startConversation(listing);
+      const thread = await startConversation(listing);
       navigation.navigate('Chat', { thread, item: listing });
     } catch (e) {
       console.error('[SellerProfile] message nav failed:', e);
