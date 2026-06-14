@@ -33,13 +33,13 @@ export default function EditProfileScreen({ navigation }) {
 
       const { error } = await supabase
         .from('profiles')
-        .update({
+        .upsert({
+          id: session.user.id,
           display_name: name.trim(),
           status: headline.trim(),
           bio: bio.trim(),
           building: building || null,
-        })
-        .eq('id', session.user.id);
+        }, { onConflict: 'id' });
 
       if (error) { setSaveMsg(error.message); return; }
 

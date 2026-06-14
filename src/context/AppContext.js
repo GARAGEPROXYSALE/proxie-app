@@ -415,8 +415,9 @@ export function AppProvider({ children }) {
       const saved = await insertListing(listing);
       setListings((prev) => prev.map((l) => l.id === optimistic.id ? { ...saved, seller: optimistic.seller, angle: optimistic.angle, distance: 0, saved: false } : l));
     } catch (e) {
-      // Keep optimistic — DB write failed silently
-      console.warn('[addListing] DB write failed:', e.message);
+      // Roll back optimistic listing and surface the error to the caller
+      setListings((prev) => prev.filter((l) => l.id !== optimistic.id));
+      throw e;
     }
   }, [user]);
 

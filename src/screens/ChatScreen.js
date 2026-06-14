@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
+import { markMessagesRead } from '../lib/db';
 import ChatMenuSheet from '../components/ChatMenuSheet';
 import OfferModal from '../components/OfferModal';
 import MeetupModal from '../components/MeetupModal';
@@ -21,8 +22,13 @@ export default function ChatScreen({ navigation, route }) {
   const [sellerSheetOpen, setSellerSheetOpen] = useState(false);
   const flatRef = useRef(null);
 
-  // Clear unread count when conversation opens
-  useEffect(() => { markRead(thread.id); }, [thread.id]);
+  // Clear unread count when conversation opens (local state + DB)
+  useEffect(() => {
+    markRead(thread.id);
+    if (thread.dbConversationId && user?.id) {
+      markMessagesRead(thread.dbConversationId, user.id).catch(() => {});
+    }
+  }, [thread.id]);
 
   // Always read latest thread from context
   const currentThread = messages.find((m) => m.id === thread.id) || thread;
