@@ -35,6 +35,55 @@ function SectionCard({ title, icon, onPress, children, badge }) {
 }
 
 // ─────────────────────────────────────────────────────────────
+// Swipeable stale check-in card — reveals Still Available + Mark Sold
+// ─────────────────────────────────────────────────────────────
+
+function SwipeableStaleCard({ listing, onMarkSold, onStillAvailable }) {
+  const swipeRef = useRef(null);
+
+  const renderRightActions = () => (
+    <View style={styles.listingSwipeActions}>
+      <TouchableOpacity
+        style={styles.swipeStillAvail}
+        onPress={() => { swipeRef.current?.close(); onStillAvailable(listing.id); }}
+        activeOpacity={0.85}
+      >
+        <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
+        <Text style={styles.swipeActionText}>Still{'\n'}Available</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.swipeMarkSold}
+        onPress={() => { swipeRef.current?.close(); onMarkSold(listing); }}
+        activeOpacity={0.85}
+      >
+        <Ionicons name="checkmark-done-circle" size={18} color="#fff" />
+        <Text style={styles.swipeActionText}>Mark{'\n'}Sold</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  return (
+    <Swipeable
+      ref={swipeRef}
+      renderRightActions={renderRightActions}
+      friction={2}
+      rightThreshold={50}
+      overshootRight={false}
+    >
+      <View style={styles.staleCard}>
+        <Image source={{ uri: listing.photos?.[0] }} style={styles.staleImage} resizeMode="cover" />
+        <View style={styles.staleInfo}>
+          <Text style={styles.staleName} numberOfLines={1}>{listing.title}</Text>
+          <Text style={styles.staleAge}>Listed {listing.postedAt} · ${listing.price}</Text>
+          <Text style={styles.stalePrompt}>← Swipe to update</Text>
+        </View>
+        <Ionicons name="chevron-back" size={14} color={colors.textLight} style={{ transform: [{ scaleX: -1 }], marginRight: 10 }} />
+      </View>
+    </Swipeable>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
 // Swipeable listing row — reveals Still Available + Mark Sold
 // ─────────────────────────────────────────────────────────────
 
@@ -222,37 +271,12 @@ function HostView({ navigation, user, listings, messages, onScreenScroll, openMa
               <Text style={styles.staleTitle}>Still for sale?</Text>
             </View>
             {staleListings.map((l) => (
-              <View key={l.id} style={styles.staleCard}>
-                <Image source={{ uri: l.photos[0] }} style={styles.staleImage} resizeMode="cover" />
-                <View style={styles.staleInfo}>
-                  <Text style={styles.staleName} numberOfLines={1}>{l.title}</Text>
-                  <Text style={styles.staleAge}>Listed {l.postedAt} · ${l.price}</Text>
-                  <Text style={styles.stalePrompt}>Has this been sold yet?</Text>
-                </View>
-                <View style={styles.staleActions}>
-                  <TouchableOpacity
-                    style={styles.staleSoldBtn}
-                    onPress={() => openMarkSoldModal(l)}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={styles.staleSoldText}>Mark Sold</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.staleStillBtn}
-                    activeOpacity={0.85}
-                    onPress={() => renewListing(l.id)}
-                  >
-                    <Text style={styles.staleStillText}>Still Available</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.stalePickedUpBtn}
-                    activeOpacity={0.85}
-                    onPress={() => pickUpListing(l.id)}
-                  >
-                    <Text style={styles.stalePickedUpText}>Picked Up</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
+              <SwipeableStaleCard
+                key={l.id}
+                listing={l}
+                onMarkSold={openMarkSoldModal}
+                onStillAvailable={renewListing}
+              />
             ))}
           </View>
         )}
