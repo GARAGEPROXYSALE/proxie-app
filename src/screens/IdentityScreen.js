@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, Dimensions, Alert,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, Dimensions, Alert, Animated,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -47,43 +47,68 @@ function HostView({ navigation, user, listings, messages, onScreenScroll, openMa
 
   const staleListings = activeListings.filter((l) => isStale(l.createdAt));
 
-  // Tab switcher for My Listings section
-  const [listingsTab, setListingsTab] = useState('active'); // 'active' | 'expired'
+  const [listingsTab, setListingsTab] = useState('active');
+
+  // FAB fades in when top bar scrolls out of view, fades out when it returns
+  const fabOpacity = useRef(new Animated.Value(0)).current;
+  const fabActiveRef = useRef(false);
+  const [fabActive, setFabActive] = useState(false);
+
+  const handleScroll = useCallback((event) => {
+    onScreenScroll(event);
+    const y = event.nativeEvent.contentOffset.y;
+    // Top bar is ~58px tall; show FAB once it's fully scrolled away
+    const shouldShow = y > 58;
+    if (shouldShow !== fabActiveRef.current) {
+      fabActiveRef.current = shouldShow;
+      setFabActive(shouldShow);
+      Animated.timing(fabOpacity, {
+        toValue: shouldShow ? 1 : 0,
+        duration: 180,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [onScreenScroll, fabOpacity]);
 
   return (
     <View style={[styles.safeArea, { height: SCREEN_H }]}>
-      {/* Top bar */}
-      <View style={[styles.topBar, { paddingTop: insets.top + 10 }]}>
-        <Text style={styles.topBarTitle}>My Garage</Text>
-        <View style={styles.topBarActions}>
-          <TouchableOpacity
-            style={styles.iconBtn}
-            onPress={() => navigation.navigate('Saved')}
-          >
-            <Ionicons name="bookmark-outline" size={22} color={colors.primary} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.iconBtn}
-            onPress={() => navigation.navigate('CreateListing')}
-          >
-            <Ionicons name="add-circle-outline" size={26} color={colors.primary} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.iconBtn}
-            onPress={() => navigation.navigate('Settings')}
-          >
-            <Ionicons name="settings-outline" size={24} color={colors.textSecondary} />
-          </TouchableOpacity>
-        </View>
-      </View>
+      {/* Safe area spacer — always pinned, covers the notch */}
+      <View style={{ height: insets.top, backgroundColor: colors.background }} />
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 }]}
+        contentContainerStyle={{ paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
-        onScroll={onScreenScroll}
+        onScroll={handleScroll}
       >
+        {/* Top bar — scrolls away with the page */}
+        <View style={styles.topBar}>
+          <Text style={styles.topBarTitle}>My Garage</Text>
+          <View style={styles.topBarActions}>
+            <TouchableOpacity
+              style={styles.iconBtn}
+              onPress={() => navigation.navigate('Saved')}
+            >
+              <Ionicons name="bookmark-outline" size={22} color={colors.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.iconBtn}
+              onPress={() => navigation.navigate('CreateListing')}
+            >
+              <Ionicons name="add-circle-outline" size={26} color={colors.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.iconBtn}
+              onPress={() => navigation.navigate('Settings')}
+            >
+              <Ionicons name="settings-outline" size={24} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Content wrapper — provides the horizontal padding for all sections below */}
+        <View style={styles.scrollContent}>
         {/* Profile Card */}
         <View style={styles.profileCard}>
           <View style={styles.profileLeft}>
@@ -394,17 +419,22 @@ function HostView({ navigation, user, listings, messages, onScreenScroll, openMa
           </TouchableOpacity>
         </View>
 
-        <View style={{ height: 100 }} />
+        </View>{/* end scrollContent wrapper */}
       </ScrollView>
 
-      {/* Floating + button (Threads-style FAB) */}
-      <TouchableOpacity
-        style={[styles.fab, { bottom: insets.bottom + 80 }]}
-        onPress={() => navigation.navigate('CreateListing')}
-        activeOpacity={0.88}
+      {/* FAB — fades in when top bar scrolls out of view */}
+      <Animated.View
+        pointerEvents={fabActive ? 'box-none' : 'none'}
+        style={[styles.fab, { bottom: insets.bottom + 80, opacity: fabOpacity }]}
       >
-        <Ionicons name="add" size={28} color="#fff" />
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.fabInner}
+          onPress={() => navigation.navigate('CreateListing')}
+          activeOpacity={0.88}
+        >
+          <Ionicons name="add" size={28} color="#fff" />
+        </TouchableOpacity>
+      </Animated.View>
     </View>
   );
 }
@@ -419,32 +449,36 @@ function GuestView({ navigation, user, listings, messages, onScreenScroll, inset
 
   return (
     <View style={[styles.safeArea, { height: SCREEN_H }]}>
-      {/* Top bar */}
-      <View style={[styles.topBar, { paddingTop: insets.top + 10 }]}>
-        <Text style={styles.topBarTitle}>My Hub</Text>
-        <View style={styles.topBarActions}>
-          <TouchableOpacity
-            style={styles.iconBtn}
-            onPress={() => navigation.navigate('Wishlist')}
-          >
-            <Ionicons name="bookmark-outline" size={22} color={colors.primary} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.iconBtn}
-            onPress={() => navigation.navigate('Settings')}
-          >
-            <Ionicons name="settings-outline" size={24} color={colors.textSecondary} />
-          </TouchableOpacity>
-        </View>
-      </View>
+      {/* Safe area spacer */}
+      <View style={{ height: insets.top, backgroundColor: colors.background }} />
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 }]}
+        contentContainerStyle={{ paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
         onScroll={onScreenScroll}
       >
+        {/* Top bar — scrolls with content */}
+        <View style={styles.topBar}>
+          <Text style={styles.topBarTitle}>My Hub</Text>
+          <View style={styles.topBarActions}>
+            <TouchableOpacity
+              style={styles.iconBtn}
+              onPress={() => navigation.navigate('Wishlist')}
+            >
+              <Ionicons name="bookmark-outline" size={22} color={colors.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.iconBtn}
+              onPress={() => navigation.navigate('Settings')}
+            >
+              <Ionicons name="settings-outline" size={24} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={styles.scrollContent}>
         {/* Guest greeting card */}
         <View style={styles.guestGreetCard}>
           <View style={styles.guestAvatarWrap}>
@@ -601,6 +635,7 @@ function GuestView({ navigation, user, listings, messages, onScreenScroll, inset
         </View>
 
         <View style={{ height: 20 }} />
+        </View>{/* end scrollContent wrapper */}
       </ScrollView>
     </View>
   );
@@ -636,6 +671,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
+    paddingTop: 10,
     paddingBottom: 8,
   },
   topBarTitle: {
@@ -983,13 +1019,18 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 28,
     backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 12,
     elevation: 8,
+  },
+  fabInner: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   // Guest-specific
