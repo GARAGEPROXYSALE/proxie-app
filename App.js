@@ -33,6 +33,7 @@ import EmailVerifyScreen from './src/screens/EmailVerifyScreen';
 import EditProfileScreen from './src/screens/EditProfileScreen';
 import WishlistScreen from './src/screens/WishlistScreen';
 import StorefrontScreen from './src/screens/StorefrontScreen';
+import MyListingsScreen from './src/screens/MyListingsScreen';
 
 const Tab = createBottomTabNavigator();
 const OnboardingStack = createStackNavigator();
@@ -94,6 +95,7 @@ function HomeNavigator() {
       <HomeStack.Screen name="EditProfile" component={EditProfileScreen} />
       <HomeStack.Screen name="Wishlist" component={WishlistScreen} />
       <HomeStack.Screen name="Storefront" component={StorefrontScreen} />
+      <HomeStack.Screen name="MyListings" component={MyListingsScreen} />
       <HomeStack.Screen name="Legal" component={LegalScreen} />
     </HomeStack.Navigator>
   );

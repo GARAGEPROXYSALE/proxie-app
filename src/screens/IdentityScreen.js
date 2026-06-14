@@ -268,10 +268,15 @@ function HostView({ navigation, user, listings, messages, onScreenScroll, openMa
         {/* My Listings section — Active / Sold / Saved tabs */}
         <View style={styles.myListingsSection}>
           <View style={styles.myListingsHeader}>
-            <View style={styles.sectionTitleRow}>
+            <TouchableOpacity
+              style={styles.sectionTitleRow}
+              onPress={() => navigation.navigate('MyListings')}
+              activeOpacity={0.7}
+            >
               <Ionicons name="pricetag-outline" size={18} color={colors.textSecondary} />
               <Text style={styles.sectionTitle}>My Garage</Text>
-            </View>
+              <Ionicons name="chevron-forward" size={14} color={colors.textLight} style={{ marginLeft: 2 }} />
+            </TouchableOpacity>
             <View style={styles.tabSwitcher}>
               {['active', 'sold', 'saved'].map((t) => (
                 <TouchableOpacity
