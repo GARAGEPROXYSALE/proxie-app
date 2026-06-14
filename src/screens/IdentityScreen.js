@@ -39,12 +39,10 @@ function SectionCard({ title, icon, onPress, children, badge }) {
 function SwipeActions({ onStillAvailable, onMarkSold }) {
   return (
     <View style={styles.swipeActionsWrap}>
-      <TouchableOpacity style={styles.swipeGreenBtn} onPress={onStillAvailable} activeOpacity={0.88}>
-        <Ionicons name="checkmark-circle" size={26} color="#fff" />
+      <TouchableOpacity style={styles.swipeAvailBtn} onPress={onStillAvailable} activeOpacity={0.88}>
         <Text style={styles.swipeBtnLabel}>Available</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.swipeRedBtn} onPress={onMarkSold} activeOpacity={0.88}>
-        <Ionicons name="pricetag" size={24} color="#fff" />
+      <TouchableOpacity style={styles.swipeSoldBtn} onPress={onMarkSold} activeOpacity={0.88}>
         <Text style={styles.swipeBtnLabel}>Sold</Text>
       </TouchableOpacity>
     </View>
@@ -1207,31 +1205,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignSelf: 'stretch',
     marginLeft: 8,
-    gap: 1,
   },
-  swipeGreenBtn: {
-    width: 88,
-    backgroundColor: '#34C759',
+  swipeAvailBtn: {
+    width: 96,
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 5,
-    paddingVertical: 10,
   },
-  swipeRedBtn: {
-    width: 88,
-    backgroundColor: '#FF3B30',
+  swipeSoldBtn: {
+    width: 96,
+    backgroundColor: colors.primaryDark,
     borderTopRightRadius: 14,
     borderBottomRightRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 5,
-    paddingVertical: 10,
     overflow: 'hidden',
   },
   swipeBtnLabel: {
     color: '#fff',
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
-    letterSpacing: -0.1,
+    letterSpacing: 0.1,
   },
 });
