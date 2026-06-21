@@ -11,7 +11,7 @@ import {
   updateListingAvailability, setConversationTimer, clearConversationTimer,
 } from '../lib/db';
 import { getUserLocation, distanceMiles, bearingAngle } from '../lib/location';
-import { isStale, PROXIMITY_SNAPS } from '../lib/listingUtils';
+import { isStale, PROXIMITY_SNAPS, getTimerStatus } from '../lib/listingUtils';
 import { registerForPushNotificationsAsync, savePushToken, sendPushNotification } from '../lib/pushNotifications';
 
 const AppContext = createContext(null);
@@ -780,10 +780,20 @@ export function AppProvider({ children }) {
         await sendMessageDB(convoId, user.id, text, extra);
       }
       if (thread?.with?.id) {
+        const baseBody = extra.type === 'offer' ? `Sent an offer: $${extra.offerPrice}` : text;
+        // Only mention the "in the area" timer if one is actually running right now —
+        // never reference it in the notification when no timer is active.
+        const timerStatus = thread.timerExpiresAt
+          ? getTimerStatus(thread.timerExpiresAt, thread.timerDurationMs || 60 * 60000)
+          : null;
+        const body = timerStatus && !timerStatus.expired
+          ? `${baseBody}  ·  ⏱ ${timerStatus.label} left`
+          : baseBody;
+
         sendPushNotification(
           thread.with.id,
           user.name || 'New message',
-          extra.type === 'offer' ? `Sent an offer: $${extra.offerPrice}` : text,
+          body,
           { threadId, type: 'message' }
         );
       }
