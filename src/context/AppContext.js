@@ -768,6 +768,8 @@ export function AppProvider({ children }) {
       listingId: listing.id,
       listingTitle: listing.title,
       with: listing.seller,
+      buyer_id: user.id || 'me',
+      seller_id: listing.seller?.id,
       lastMessage: '',
       timestamp: 'Now',
       unread: 0,

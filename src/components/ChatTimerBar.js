@@ -10,7 +10,7 @@ const COLOR_MAP = {
   danger: colors.danger,
 };
 
-export default function ChatTimerBar({ thread, onExtend }) {
+export default function ChatTimerBar({ thread, onExtend, canExtend = true }) {
   const [, setTick] = useState(0);
 
   // Re-render every second so the countdown + color stay live
@@ -31,10 +31,14 @@ export default function ChatTimerBar({ thread, onExtend }) {
     return (
       <View style={[styles.bar, styles.barExpired]}>
         <Ionicons name="time-outline" size={14} color={colors.textLight} />
-        <Text style={styles.expiredText}>Timer expired — no longer in the area?</Text>
-        <TouchableOpacity style={styles.extendBtn} onPress={() => onExtend(30)} activeOpacity={0.85}>
-          <Text style={styles.extendBtnText}>Extend</Text>
-        </TouchableOpacity>
+        <Text style={styles.expiredText}>
+          {canExtend ? 'Timer expired — no longer in the area?' : 'Buyer\'s timer expired'}
+        </Text>
+        {canExtend && (
+          <TouchableOpacity style={styles.extendBtn} onPress={() => onExtend(30)} activeOpacity={0.85}>
+            <Text style={styles.extendBtnText}>Extend</Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   }

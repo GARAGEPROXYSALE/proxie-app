@@ -10,12 +10,16 @@ import { markMessagesRead } from '../lib/db';
 import { getTimerStatus } from '../lib/listingUtils';
 import ChatMenuSheet from '../components/ChatMenuSheet';
 import ChatTimerBar from '../components/ChatTimerBar';
+import TimerIconButton from '../components/TimerIconButton';
+import TimerPickerSheet from '../components/TimerPickerSheet';
 import OfferModal from '../components/OfferModal';
 import MeetupModal from '../components/MeetupModal';
 import UserActionSheet from '../components/UserActionSheet';
 import colors from '../theme/colors';
 
 const MEETUP_SAFETY_KEY = 'proxie_meetup_safety_seen';
+
+const TIMER_COLOR_MAP = { success: colors.success, warning: colors.warning, danger: colors.danger };
 
 const SAFETY_TIPS = [
   { icon: 'people-outline', text: 'Meet in your building lobby or a public common area' },
@@ -51,13 +55,14 @@ function SafeMeetupBanner({ onDismiss }) {
 
 export default function ChatScreen({ navigation, route }) {
   const { thread, item, prefill } = route.params;
-  const { sendMessage, messages, user, markRead, openRatingPrompt, extendChatTimer } = useApp();
+  const { sendMessage, messages, user, markRead, openRatingPrompt, startChatTimer, extendChatTimer, clearThreadTimer } = useApp();
   const [text, setText] = useState(prefill || '');
   const [menuOpen, setMenuOpen] = useState(false);
   const [offerOpen, setOfferOpen] = useState(false);
   const [meetupOpen, setMeetupOpen] = useState(false);
   const [sellerSheetOpen, setSellerSheetOpen] = useState(false);
   const [showSafetyBanner, setShowSafetyBanner] = useState(false);
+  const [timerSheetOpen, setTimerSheetOpen] = useState(false);
   const [, forceTick] = useState(0);
   const flatRef = useRef(null);
 
@@ -110,6 +115,27 @@ export default function ChatScreen({ navigation, route }) {
     ? getTimerStatus(currentThread.timerExpiresAt, currentThread.timerDurationMs || 60 * 60000)
     : null;
   const isTimerExpired = !!timerStatus?.expired;
+
+  // Only the buyer (chat initiator) can start/manage the "in the area" timer.
+  // Threads missing buyer_id (legacy/mock data) default to true so nothing regresses.
+  const isBuyer = currentThread.buyer_id ? currentThread.buyer_id === user?.id : true;
+
+  const handleTimerBtnPress = () => setTimerSheetOpen(true);
+
+  const handleStartTimer = (minutes) => {
+    startChatTimer(currentThread.id, minutes);
+    setTimerSheetOpen(false);
+  };
+
+  const handleExtendTimer = (minutes) => {
+    extendChatTimer(currentThread.id, minutes);
+    setTimerSheetOpen(false);
+  };
+
+  const handleCancelTimer = () => {
+    clearThreadTimer(currentThread.id);
+    setTimerSheetOpen(false);
+  };
 
   const quickReplies = [
     'Is this still available?',
@@ -235,6 +261,14 @@ export default function ChatScreen({ navigation, route }) {
                 {currentThread.pinned && (
                   <Ionicons name="pin" size={13} color={colors.primary} />
                 )}
+                {!isBuyer && timerStatus && !timerStatus.expired && (
+                  <View style={[styles.sellerTimerBadge, { backgroundColor: TIMER_COLOR_MAP[timerStatus.color] + '20' }]}>
+                    <Ionicons name="hourglass" size={11} color={TIMER_COLOR_MAP[timerStatus.color]} />
+                    <Text style={[styles.sellerTimerBadgeText, { color: TIMER_COLOR_MAP[timerStatus.color] }]}>
+                      {timerStatus.label}
+                    </Text>
+                  </View>
+                )}
               </View>
               <Text style={styles.headerListing} numberOfLines={1}>
                 {currentThread.listingTitle}
@@ -246,8 +280,12 @@ export default function ChatScreen({ navigation, route }) {
           </TouchableOpacity>
         </View>
 
-        {/* "In the area" timer */}
-        <ChatTimerBar thread={currentThread} onExtend={(minutes) => extendChatTimer(currentThread.id, minutes)} />
+        {/* "In the area" timer — persistent display, extend gated to the buyer */}
+        <ChatTimerBar
+          thread={currentThread}
+          onExtend={(minutes) => extendChatTimer(currentThread.id, minutes)}
+          canExtend={isBuyer}
+        />
 
         {/* Messages */}
         <FlatList
@@ -287,6 +325,13 @@ export default function ChatScreen({ navigation, route }) {
 
         {/* Input */}
         <View style={styles.inputRow}>
+          {isBuyer && (
+            <TimerIconButton
+              active={!!currentThread.timerExpiresAt}
+              status={timerStatus}
+              onPress={handleTimerBtnPress}
+            />
+          )}
           <TextInput
             style={styles.input}
             placeholder="Message..."
@@ -341,6 +386,18 @@ export default function ChatScreen({ navigation, route }) {
         listing={item}
         navigation={navigation}
       />
+
+      {/* "In the area" timer — picker when idle, manage (extend/cancel) when active. Buyer-only. */}
+      {isBuyer && (
+        <TimerPickerSheet
+          visible={timerSheetOpen}
+          onClose={() => setTimerSheetOpen(false)}
+          thread={currentThread}
+          onStart={handleStartTimer}
+          onExtend={handleExtendTimer}
+          onCancel={handleCancelTimer}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -385,6 +442,18 @@ const styles = StyleSheet.create({
   },
   headerName: { fontSize: 15, fontWeight: '700', color: colors.text },
   headerListing: { fontSize: 12, color: colors.primary },
+  sellerTimerBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  sellerTimerBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
   dotsBtn: {
     width: 36,
     height: 36,
