@@ -28,8 +28,10 @@
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
         "CAMERA",
-        "READ_EXTERNAL_STORAGE"
-      ]
+        "READ_EXTERNAL_STORAGE",
+        "NOTIFICATIONS"
+      ],
+      "useNextNotificationsApi": true
     },
     "web": {
       "bundler": "metro",
@@ -40,7 +42,19 @@
       "expo-image-picker",
       "expo-font",
       "expo-asset",
-      "expo-build-properties"
-    ]
+      "expo-build-properties",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#5B9BD5"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "REPLACE_WITH_EAS_PROJECT_ID"
+      }
+    }
   }
 }

@@ -12,6 +12,7 @@ import {
 } from '../lib/db';
 import { getUserLocation, distanceMiles, bearingAngle } from '../lib/location';
 import { isStale, PROXIMITY_SNAPS } from '../lib/listingUtils';
+import { registerForPushNotificationsAsync, savePushToken, sendPushNotification } from '../lib/pushNotifications';
 
 const AppContext = createContext(null);
 
@@ -118,7 +119,7 @@ export function AppProvider({ children }) {
   const [markSoldModal, setMarkSoldModal] = useState({ visible: false, item: null });
 
   // ── Rating prompt ────────────────────────────────────────────
-  const [ratingPrompt, setRatingPrompt] = useState({ visible: false, item: null, buyerName: '', role: 'seller' });
+  const [ratingPrompt, setRatingPrompt] = useState({ visible: false, item: null, buyerName: '', role: 'seller', ratedUserId: null });
 
   const [userLocation, setUserLocation] = useState(null);
 
@@ -210,6 +211,12 @@ export function AppProvider({ children }) {
         avatar_url: profile.avatar_url ?? null,
       }));
       setIsAuthenticated(true);
+
+      // Register for push notifications — no-ops on web, returns null without
+      // an EAS projectId or on a simulator. Fire-and-forget either way.
+      registerForPushNotificationsAsync()
+        .then((token) => { if (token) savePushToken(profile.id, token); })
+        .catch(() => {});
 
       // Load blocks
       const { data: blocks } = await supabase
@@ -412,14 +419,14 @@ export function AppProvider({ children }) {
     if (buyer?.threadId) {
       AsyncStorage.setItem(
         `proxie_pending_buyer_rating_${buyer.threadId}`,
-        JSON.stringify({ item: soldItem, sellerName: user?.name || 'the seller' })
+        JSON.stringify({ item: soldItem, sellerName: user?.name || 'the seller', sellerId: user?.id })
       ).catch(() => {});
     }
 
     setTimeout(() => {
-      setRatingPrompt({ visible: true, item: soldItem, buyerName, role: 'seller' });
+      setRatingPrompt({ visible: true, item: soldItem, buyerName, role: 'seller', ratedUserId: buyer?.id || null });
     }, 600);
-  }, [user?.name]);
+  }, [user?.name, user?.id]);
 
   const submitRating = useCallback((vote) => {
     if (vote === 'up') {
@@ -428,15 +435,25 @@ export function AppProvider({ children }) {
         rating: Math.min(5.0, parseFloat((prev.rating + 0.1).toFixed(1))),
       }));
     }
-    setRatingPrompt({ visible: false, item: null, buyerName: '', role: 'seller' });
-  }, []);
+    setRatingPrompt((prev) => {
+      if (prev.ratedUserId) {
+        sendPushNotification(
+          prev.ratedUserId,
+          'You got rated!',
+          `${user.name || 'Someone'} left you a ${vote === 'up' ? 'positive' : 'negative'} rating for "${prev.item?.title}"`,
+          { type: 'rating' }
+        );
+      }
+      return { visible: false, item: null, buyerName: '', role: 'seller', ratedUserId: null };
+    });
+  }, [user.name]);
 
   const dismissRating = useCallback(() => {
-    setRatingPrompt({ visible: false, item: null, buyerName: '', role: 'seller' });
+    setRatingPrompt({ visible: false, item: null, buyerName: '', role: 'seller', ratedUserId: null });
   }, []);
 
-  const openRatingPrompt = useCallback(({ item, buyerName, role }) => {
-    setRatingPrompt({ visible: true, item, buyerName, role });
+  const openRatingPrompt = useCallback(({ item, buyerName, role, ratedUserId }) => {
+    setRatingPrompt({ visible: true, item, buyerName, role, ratedUserId: ratedUserId || null });
   }, []);
 
   // ── Listings ─────────────────────────────────────────────────
@@ -673,17 +690,24 @@ export function AppProvider({ children }) {
     const newCount = (thread?.timerExtendedCount || 0) + 1;
     setThreadTimer(threadId, minutes * 60000, newCount);
 
-    // Best-effort notification to the seller. Real push delivery requires
-    // Expo push token registration (not yet wired up) — for now this shows
-    // as an in-app toast if the seller has the app open, and is logged so the
-    // hook is ready to swap in real push once that infra exists.
+    // In-app toast for when the seller has the app open right now...
     setToast({
       visible: true,
       message: `You're still in the area — extended by ${minutes} min`,
     });
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast({ visible: false }), 3000);
-  }, [setThreadTimer]);
+
+    // ...and a real push notification for when they don't.
+    if (thread?.with?.id) {
+      sendPushNotification(
+        thread.with.id,
+        `${user.name || 'Buyer'} is still in the area`,
+        `Extended by ${minutes} min for "${thread.listingTitle}"`,
+        { threadId, type: 'timer_extend' }
+      );
+    }
+  }, [setThreadTimer, user.name]);
 
   const clearThreadTimer = useCallback((threadId) => {
     setMessages((prev) => {
@@ -751,13 +775,22 @@ export function AppProvider({ children }) {
     // Persist to DB
     try {
       const thread = messagesRef.current.find((t) => t.id === threadId);
-      if (thread?.dbConversationId && user.id) {
-        await sendMessageDB(thread.dbConversationId, user.id, text, extra);
+      const convoId = thread?.dbConversationId || thread?.id;
+      if (convoId && user.id) {
+        await sendMessageDB(convoId, user.id, text, extra);
+      }
+      if (thread?.with?.id) {
+        sendPushNotification(
+          thread.with.id,
+          user.name || 'New message',
+          extra.type === 'offer' ? `Sent an offer: $${extra.offerPrice}` : text,
+          { threadId, type: 'message' }
+        );
       }
     } catch (e) {
       console.warn('[sendMessage] DB failed:', e.message);
     }
-  }, [user.id]);
+  }, [user.id, user.name]);
 
   const startConversation = useCallback(async (listing) => {
     const existing = messagesRef.current.find((m) => m.listingId === listing.id);

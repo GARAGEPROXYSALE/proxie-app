@@ -22,6 +22,8 @@ create table if not exists public.profiles (
   seller_type   text default 'individual' check (seller_type in ('individual','store')),
   store_id      uuid,
   member_since  timestamptz default now(),
+  push_token    text,
+  push_token_updated_at timestamptz,
   created_at    timestamptz default now()
 );
 alter table public.profiles enable row level security;

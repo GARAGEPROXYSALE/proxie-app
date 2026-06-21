@@ -87,10 +87,10 @@ export default function ChatScreen({ navigation, route }) {
     AsyncStorage.getItem(key).then((raw) => {
       if (!raw) return;
       try {
-        const { item: ratedItem, sellerName } = JSON.parse(raw);
+        const { item: ratedItem, sellerName, sellerId } = JSON.parse(raw);
         AsyncStorage.removeItem(key).catch(() => {});
         setTimeout(() => {
-          openRatingPrompt({ item: ratedItem, buyerName: sellerName, role: 'buyer' });
+          openRatingPrompt({ item: ratedItem, buyerName: sellerName, role: 'buyer', ratedUserId: sellerId });
         }, 1200);
       } catch {}
     }).catch(() => {});

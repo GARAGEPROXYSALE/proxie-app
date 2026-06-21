@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -7,6 +7,7 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AppProvider, useApp } from './src/context/AppContext';
+import { addNotificationResponseListener } from './src/lib/pushNotifications';
 import CustomTabBar from './src/components/CustomTabBar';
 import SaveToast from './src/components/SaveToast';
 import CollectionModal from './src/components/CollectionModal';
@@ -105,7 +106,7 @@ function HomeNavigator() {
 
 // ── Global overlays (toasts, modals on top of everything) ────
 function GlobalOverlays({ navigationRef }) {
-  const { toast, navigateFromToast } = useApp();
+  const { toast, navigateFromToast, messages } = useApp();
 
   const handleToastNavigate = () => {
     try {
@@ -115,6 +116,22 @@ function GlobalOverlays({ navigationRef }) {
     }
     navigateFromToast();
   };
+
+  // Deep-link into the right chat when a push notification is tapped
+  useEffect(() => {
+    const sub = addNotificationResponseListener((response) => {
+      const { threadId, type } = response.notification.request.content.data || {};
+      if (!threadId || (type !== 'message' && type !== 'timer_extend')) return;
+      const thread = messages.find((t) => t.id === threadId);
+      if (!thread) return;
+      try {
+        navigationRef.current?.navigate('NearbyTab', { screen: 'Chat', params: { thread, item: thread.listing } });
+      } catch {
+        navigationRef.current?.navigate('Chat', { thread, item: thread.listing });
+      }
+    });
+    return () => sub.remove();
+  }, [messages]);
 
   return (
     <>
