@@ -327,7 +327,10 @@ export default function ChatScreen({ navigation, route }) {
         <View style={styles.inputRow}>
           <View style={styles.inputWrapper}>
             <TextInput
-              style={[styles.input, isBuyer && styles.inputWithIcon]}
+              style={[
+                styles.input,
+                isBuyer && (timerStatus && !timerStatus.expired ? styles.inputWithActiveTimer : styles.inputWithIcon),
+              ]}
               placeholder="Message..."
               placeholderTextColor={colors.textLight}
               value={text}
@@ -715,6 +718,9 @@ const styles = StyleSheet.create({
   },
   inputWithIcon: {
     paddingRight: 42,
+  },
+  inputWithActiveTimer: {
+    paddingRight: 88,
   },
   timerBtnOverlay: {
     position: 'absolute',
