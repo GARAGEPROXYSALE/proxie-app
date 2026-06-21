@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
+import { getAvailabilityStatus } from '../lib/listingUtils';
 import colors from '../theme/colors';
 
 const { width } = Dimensions.get('window');
@@ -132,6 +133,24 @@ export default function ItemDetailScreen({ navigation, route }) {
               </View>
             )}
           </View>
+
+          {/* Availability status */}
+          {(() => {
+            const availability = getAvailabilityStatus(liveItem);
+            const isAvailable = availability.state === 'available';
+            return (
+              <View style={[styles.availabilityChip, isAvailable && styles.availabilityChipOn]}>
+                <Ionicons
+                  name={isAvailable ? 'checkmark-circle' : 'time-outline'}
+                  size={15}
+                  color={isAvailable ? colors.success : colors.textSecondary}
+                />
+                <Text style={[styles.availabilityText, isAvailable && styles.availabilityTextOn]}>
+                  {availability.label}
+                </Text>
+              </View>
+            );
+          })()}
 
           {/* Description */}
           <View style={styles.section}>
@@ -327,6 +346,32 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.primary,
     fontWeight: '500',
+  },
+
+  availabilityChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    backgroundColor: colors.cardBackground,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  availabilityChipOn: {
+    backgroundColor: colors.success + '15',
+    borderColor: colors.success + '30',
+  },
+  availabilityText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  availabilityTextOn: {
+    color: colors.success,
   },
 
   section: { marginBottom: 20 },

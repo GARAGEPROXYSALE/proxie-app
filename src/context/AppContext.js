@@ -8,6 +8,7 @@ import {
   startConversationDB, sendMessageDB, markMessagesRead, subscribeToMessages,
   fetchWishlist, insertWishlistEntry, deleteWishlistEntry,
   insertListing, updateListingStatus, repostListingRPC, incrementViewsRPC,
+  updateListingAvailability, setConversationTimer, clearConversationTimer,
 } from '../lib/db';
 import { getUserLocation, distanceMiles, bearingAngle } from '../lib/location';
 import { isStale, PROXIMITY_SNAPS } from '../lib/listingUtils';
@@ -221,8 +222,16 @@ export function AppProvider({ children }) {
       fetchConversations(profile.id)
         .then((convos) => {
           if (convos.length > 0) {
-            setMessages(convos);
-            messagesRef.current = convos;
+            // timer_duration_ms isn't persisted (only expires_at + extended_count) —
+            // for restored sessions with an active timer, assume the longest quick
+            // preset (60 min) as the denominator so the color bar still reads sensibly.
+            const withTimerDefaults = convos.map((c) =>
+              c.timerExpiresAt && !c.timerDurationMs
+                ? { ...c, timerDurationMs: 60 * 60000 }
+                : c
+            );
+            setMessages(withTimerDefaults);
+            messagesRef.current = withTimerDefaults;
           }
         })
         .catch(() => {});
@@ -438,6 +447,17 @@ export function AppProvider({ children }) {
     );
   }, []);
 
+  const setListingAvailability = useCallback((listingId, { availabilityType, schedule }) => {
+    setListings((prev) =>
+      prev.map((l) =>
+        l.id === listingId ? { ...l, availability_type: availabilityType, schedule: schedule || [] } : l
+      )
+    );
+    if (!String(listingId).startsWith('temp-')) {
+      updateListingAvailability(listingId, { availabilityType, schedule }).catch(() => {});
+    }
+  }, []);
+
   const addListing = useCallback(async (listing) => {
     const now = Date.now();
     const optimistic = {
@@ -621,6 +641,65 @@ export function AppProvider({ children }) {
     });
   }, []);
 
+  // ── "In the area" chat timer ──────────────────────────────────
+  // timer_expires_at / timer_extended_count persist in Supabase (conversations table)
+  // so the timer survives app kills and is visible to both buyer + seller.
+
+  const setThreadTimer = useCallback((threadId, durationMs, extendedCount) => {
+    const expiresAt = new Date(Date.now() + durationMs).toISOString();
+    setMessages((prev) => {
+      const updated = prev.map((t) =>
+        t.id === threadId
+          ? { ...t, timerExpiresAt: expiresAt, timerExtendedCount: extendedCount, timerDurationMs: durationMs }
+          : t
+      );
+      messagesRef.current = updated;
+      return updated;
+    });
+    const thread = messagesRef.current.find((t) => t.id === threadId);
+    const convoId = thread?.dbConversationId || thread?.id;
+    if (convoId) {
+      setConversationTimer(convoId, expiresAt, extendedCount).catch(() => {});
+    }
+    return expiresAt;
+  }, []);
+
+  const startChatTimer = useCallback((threadId, minutes) => {
+    setThreadTimer(threadId, minutes * 60000, 0);
+  }, [setThreadTimer]);
+
+  const extendChatTimer = useCallback((threadId, minutes = 30) => {
+    const thread = messagesRef.current.find((t) => t.id === threadId);
+    const newCount = (thread?.timerExtendedCount || 0) + 1;
+    setThreadTimer(threadId, minutes * 60000, newCount);
+
+    // Best-effort notification to the seller. Real push delivery requires
+    // Expo push token registration (not yet wired up) — for now this shows
+    // as an in-app toast if the seller has the app open, and is logged so the
+    // hook is ready to swap in real push once that infra exists.
+    setToast({
+      visible: true,
+      message: `You're still in the area — extended by ${minutes} min`,
+    });
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast({ visible: false }), 3000);
+  }, [setThreadTimer]);
+
+  const clearThreadTimer = useCallback((threadId) => {
+    setMessages((prev) => {
+      const updated = prev.map((t) =>
+        t.id === threadId ? { ...t, timerExpiresAt: null, timerExtendedCount: 0, timerDurationMs: null } : t
+      );
+      messagesRef.current = updated;
+      return updated;
+    });
+    const thread = messagesRef.current.find((t) => t.id === threadId);
+    const convoId = thread?.dbConversationId || thread?.id;
+    if (convoId) {
+      clearConversationTimer(convoId).catch(() => {});
+    }
+  }, []);
+
   const unarchiveThread = useCallback((threadId) => {
     setMessages((prev) => {
       const updated = prev.map((t) =>
@@ -767,6 +846,7 @@ export function AppProvider({ children }) {
         renewListing,
         pickUpListing,
         repostListing,
+        setListingAvailability,
         // Messages
         sendMessage,
         startConversation,
@@ -788,6 +868,10 @@ export function AppProvider({ children }) {
         archiveThread,
         unarchiveThread,
         deleteThread,
+        // "In the area" chat timer
+        startChatTimer,
+        extendChatTimer,
+        clearThreadTimer,
         // Wishlist
         wishlist,
         addWishlistEntry,

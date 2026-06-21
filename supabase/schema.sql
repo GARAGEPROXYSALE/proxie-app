@@ -83,6 +83,8 @@ create table if not exists public.listings (
   seller_type         text default 'individual' check (seller_type in ('individual','store')),
   store_id            uuid references public.stores(id),
   expires_at          timestamptz default (now() + interval '7 days'),
+  availability_type   text default 'anytime' check (availability_type in ('anytime','scheduled')),
+  schedule            jsonb default '[]'::jsonb,
   created_at          timestamptz default now()
 );
 alter table public.listings enable row level security;
@@ -108,6 +110,8 @@ create table if not exists public.conversations (
   seller_archived       boolean default false,
   buyer_pinned          boolean default false,
   seller_pinned         boolean default false,
+  timer_expires_at      timestamptz,
+  timer_extended_count  int default 0,
   created_at            timestamptz default now(),
   unique(listing_id, buyer_id, seller_id)
 );

@@ -16,6 +16,8 @@ import colors from '../theme/colors';
 const CONDITIONS = ['New', 'Like New', 'Good', 'Fair'];
 const CATEGORIES = ['Furniture', 'Electronics', 'Clothing', 'Books', 'Kitchen', 'Sports', 'Toys', 'Tickets', 'Other'];
 const TICKET_TYPES = ['General Admission', 'Reserved', 'VIP', 'Suite'];
+const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 export default function CreateListingScreen({ navigation }) {
   const { addListing, user } = useApp();
@@ -43,13 +45,30 @@ export default function CreateListingScreen({ navigation }) {
   const [ticketType, setTicketType] = useState('Reserved');
   const [ticketNotes, setTicketNotes] = useState('');
 
+  // Availability
+  const [availabilityType, setAvailabilityType] = useState('anytime'); // 'anytime' | 'scheduled'
+  const [scheduleDays, setScheduleDays] = useState([]); // [0-6]
+  const [scheduleStart, setScheduleStart] = useState('09:00');
+  const [scheduleEnd, setScheduleEnd] = useState('17:00');
+
   const isTickets = category === 'Tickets';
 
-  const isValid = photos.length > 0 && (
+  const isScheduleValid = availabilityType === 'anytime' || (
+    scheduleDays.length > 0 &&
+    TIME_RE.test(scheduleStart) &&
+    TIME_RE.test(scheduleEnd) &&
+    scheduleStart < scheduleEnd
+  );
+
+  const isValid = photos.length > 0 && isScheduleValid && (
     isTickets
       ? eventName.trim() && price.trim() && eventDate.trim() && venue.trim() && numTickets
       : title.trim() && price.trim() && description.trim() && category
   );
+
+  const toggleScheduleDay = (day) => {
+    setScheduleDays((prev) => prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort());
+  };
 
   useEffect(() => {
     getUserLocation().then((loc) => setGpsCoords(loc)).catch(() => {});
@@ -144,6 +163,10 @@ export default function CreateListingScreen({ navigation }) {
         photos: uploadedUrls,
         latitude: gpsCoords?.latitude || null,
         longitude: gpsCoords?.longitude || null,
+        availabilityType,
+        schedule: availabilityType === 'scheduled'
+          ? [{ days: scheduleDays, start: scheduleStart, end: scheduleEnd }]
+          : [],
       });
 
       navigation.goBack();
@@ -425,6 +448,82 @@ export default function CreateListingScreen({ navigation }) {
               </>
             )}
 
+            {/* Availability */}
+            <View style={styles.field}>
+              <Text style={styles.label}>When are you available?</Text>
+              <View style={styles.availToggleRow}>
+                <TouchableOpacity
+                  style={[styles.availToggleBtn, availabilityType === 'anytime' && styles.availToggleBtnActive]}
+                  onPress={() => setAvailabilityType('anytime')}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="infinite-outline" size={15} color={availabilityType === 'anytime' ? '#fff' : colors.textSecondary} />
+                  <Text style={[styles.availToggleText, availabilityType === 'anytime' && styles.availToggleTextActive]}>Anytime</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.availToggleBtn, availabilityType === 'scheduled' && styles.availToggleBtnActive]}
+                  onPress={() => setAvailabilityType('scheduled')}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="calendar-outline" size={15} color={availabilityType === 'scheduled' ? '#fff' : colors.textSecondary} />
+                  <Text style={[styles.availToggleText, availabilityType === 'scheduled' && styles.availToggleTextActive]}>Scheduled</Text>
+                </TouchableOpacity>
+              </View>
+
+              {availabilityType === 'scheduled' && (
+                <View style={styles.scheduleBox}>
+                  <Text style={styles.scheduleSubLabel}>Which days?</Text>
+                  <View style={styles.dayChipRow}>
+                    {DAY_LABELS.map((label, idx) => (
+                      <TouchableOpacity
+                        key={label}
+                        style={[styles.dayChip, scheduleDays.includes(idx) && styles.dayChipActive]}
+                        onPress={() => toggleScheduleDay(idx)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={[styles.dayChipText, scheduleDays.includes(idx) && styles.dayChipTextActive]}>{label}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+
+                  <Text style={styles.scheduleSubLabel}>What time?</Text>
+                  <View style={styles.timeRow}>
+                    <View style={styles.timeField}>
+                      <Text style={styles.timeFieldLabel}>From</Text>
+                      <TextInput
+                        style={styles.timeInput}
+                        placeholder="09:00"
+                        placeholderTextColor={colors.textLight}
+                        value={scheduleStart}
+                        onChangeText={setScheduleStart}
+                        maxLength={5}
+                      />
+                    </View>
+                    <Text style={styles.timeDash}>–</Text>
+                    <View style={styles.timeField}>
+                      <Text style={styles.timeFieldLabel}>To</Text>
+                      <TextInput
+                        style={styles.timeInput}
+                        placeholder="17:00"
+                        placeholderTextColor={colors.textLight}
+                        value={scheduleEnd}
+                        onChangeText={setScheduleEnd}
+                        maxLength={5}
+                      />
+                    </View>
+                  </View>
+                  <Text style={styles.scheduleHint}>
+                    24-hour format, e.g. 09:00–14:00. Your listing stays visible at all times — buyers just see when you're actually available.
+                  </Text>
+                  {!isScheduleValid && (
+                    <Text style={styles.scheduleError}>
+                      Pick at least one day and a valid time range (from before to).
+                    </Text>
+                  )}
+                </View>
+              )}
+            </View>
+
             {publishError ? (
               <View style={styles.errorBanner}>
                 <Ionicons name="alert-circle" size={18} color="#fff" />
@@ -538,6 +637,43 @@ const styles = StyleSheet.create({
   condChipActive: { backgroundColor: colors.primaryLight, borderColor: colors.primaryLight },
   condText: { fontSize: 12, color: colors.textSecondary, fontWeight: '500' },
   condTextActive: { color: '#fff', fontWeight: '700' },
+
+  // Availability
+  availToggleRow: { flexDirection: 'row', gap: 10, marginBottom: 4 },
+  availToggleBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingVertical: 12, borderRadius: 12,
+    backgroundColor: colors.cardBackground, borderWidth: 1, borderColor: colors.border,
+  },
+  availToggleBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  availToggleText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
+  availToggleTextActive: { color: '#fff' },
+
+  scheduleBox: {
+    marginTop: 14, padding: 14, borderRadius: 14,
+    backgroundColor: colors.cardBackground, borderWidth: 1, borderColor: colors.border,
+  },
+  scheduleSubLabel: { fontSize: 12, fontWeight: '600', color: colors.textSecondary, marginBottom: 8, marginTop: 4 },
+  dayChipRow: { flexDirection: 'row', gap: 6, marginBottom: 4 },
+  dayChip: {
+    flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center',
+    backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border,
+  },
+  dayChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  dayChipText: { fontSize: 11, fontWeight: '600', color: colors.textSecondary },
+  dayChipTextActive: { color: '#fff' },
+
+  timeRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 10 },
+  timeField: { flex: 1 },
+  timeFieldLabel: { fontSize: 11, color: colors.textLight, marginBottom: 6, fontWeight: '500' },
+  timeInput: {
+    backgroundColor: colors.background, borderRadius: 10, borderWidth: 1, borderColor: colors.border,
+    paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: colors.text, textAlign: 'center',
+  },
+  timeDash: { fontSize: 16, color: colors.textLight, paddingBottom: 10 },
+
+  scheduleHint: { fontSize: 11, color: colors.textLight, lineHeight: 16, marginTop: 12 },
+  scheduleError: { fontSize: 11, color: colors.danger, lineHeight: 16, marginTop: 8, fontWeight: '500' },
 
   rowFields: { flexDirection: 'row', gap: 10 },
 

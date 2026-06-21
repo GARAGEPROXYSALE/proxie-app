@@ -69,3 +69,94 @@ export function recencyLabel(createdAt) {
   if (days < 7) return `Listed ${days} day${days === 1 ? '' : 's'} ago`;
   return 'Listed 7 days ago';
 }
+
+// ── Seller availability schedule ──────────────────────────────────
+
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+function parseHM(hm) {
+  const [h, m] = (hm || '00:00').split(':').map(Number);
+  return h * 60 + (m || 0);
+}
+
+function formatMinutes(totalMin) {
+  const h = Math.floor(totalMin / 60) % 24;
+  const m = totalMin % 60;
+  const period = h >= 12 ? 'pm' : 'am';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return m === 0 ? `${h12}${period}` : `${h12}:${String(m).padStart(2, '0')}${period}`;
+}
+
+function formatDuration(ms) {
+  const totalMin = Math.ceil(ms / 60000);
+  if (totalMin < 60) return `${totalMin}m`;
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
+
+/**
+ * Computes a listing's current availability state against its schedule.
+ * Returns { state: 'available' | 'opens' | 'closed', label, nextChangeAt }
+ *
+ * Listings with availability_type 'anytime' (or no schedule) are always available.
+ * Scheduled listings are checked against `schedule`: an array of
+ * { days: [0-6], start: 'HH:MM', end: 'HH:MM' } windows in local time.
+ */
+export function getAvailabilityStatus(listing, now = new Date()) {
+  if (!listing || listing.availability_type !== 'scheduled' || !listing.schedule?.length) {
+    return { state: 'available', label: 'Available now' };
+  }
+
+  const schedule = listing.schedule;
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const today = now.getDay();
+
+  // Currently inside any window?
+  const activeWindow = schedule.find((w) => w.days.includes(today) && nowMin >= parseHM(w.start) && nowMin < parseHM(w.end));
+  if (activeWindow) {
+    return { state: 'available', label: 'Available now' };
+  }
+
+  // Find the next upcoming window within the next 7 days
+  for (let offset = 0; offset < 8; offset++) {
+    const checkDay = (today + offset) % 7;
+    const dayWindows = schedule.filter((w) => w.days.includes(checkDay));
+    for (const w of dayWindows.sort((a, b) => parseHM(a.start) - parseHM(b.start))) {
+      const startMin = parseHM(w.start);
+      if (offset === 0 && startMin <= nowMin) continue; // already passed today
+      const nextDate = new Date(now);
+      nextDate.setDate(now.getDate() + offset);
+      nextDate.setHours(Math.floor(startMin / 60), startMin % 60, 0, 0);
+
+      if (offset === 0) {
+        const msUntil = nextDate - now;
+        return { state: 'opens', label: `Opens in ${formatDuration(msUntil)}`, nextChangeAt: nextDate };
+      }
+      const dayLabel = offset === 1 ? 'tomorrow' : DAY_NAMES[checkDay];
+      return { state: 'closed', label: `Closed until ${dayLabel} ${formatMinutes(startMin)}`, nextChangeAt: nextDate };
+    }
+  }
+
+  return { state: 'closed', label: 'Closed', nextChangeAt: null };
+}
+
+// ── Chat "in the area" timer ────────────────────────────────────
+
+/**
+ * Returns { percent, color, label, expired } for a chat timer.
+ * percent is remaining time as a fraction of the original duration (0-1).
+ */
+export function getTimerStatus(timerExpiresAt, totalDurationMs) {
+  if (!timerExpiresAt) return null;
+  const expiresAt = new Date(timerExpiresAt).getTime();
+  const remainingMs = expiresAt - Date.now();
+  if (remainingMs <= 0) {
+    return { percent: 0, color: 'danger', label: 'Timer expired', expired: true };
+  }
+  const percent = totalDurationMs > 0 ? Math.max(0, Math.min(1, remainingMs / totalDurationMs)) : 0;
+  let color = 'success';
+  if (percent <= 0.2) color = 'danger';
+  else if (percent <= 0.5) color = 'warning';
+  return { percent, color, label: formatDuration(remainingMs), expired: false };
+}

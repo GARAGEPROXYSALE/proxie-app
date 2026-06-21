@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Animated, StyleSheet, TouchableOpacity, Text } from 'react-native';
+import { getAvailabilityStatus } from '../lib/listingUtils';
 import colors from '../theme/colors';
 
 const RADAR_SIZE = 300;
@@ -43,6 +44,33 @@ function RadarRing({ delay, size }) {
       style={[
         styles.ring,
         { width: size, height: size, borderRadius: size / 2, opacity, transform: [{ scale }] },
+      ]}
+    />
+  );
+}
+
+function AvailablePulse({ color }) {
+  const anim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(anim, { toValue: 1, duration: 1100, useNativeDriver: false }),
+        Animated.timing(anim, { toValue: 0, duration: 0, useNativeDriver: false }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, []);
+
+  const scale = anim.interpolate({ inputRange: [0, 1], outputRange: [1, 2.2] });
+  const opacity = anim.interpolate({ inputRange: [0, 1], outputRange: [0.55, 0] });
+
+  return (
+    <Animated.View
+      style={[
+        styles.availPulse,
+        { borderColor: color, opacity, transform: [{ scale }] },
       ]}
     />
   );
@@ -105,6 +133,7 @@ export default function RadarView({ items, maxMiles, onItemPress }) {
           {/* Item dots */}
           {itemsWithCoords.map((item) => {
             const dotColor = categoryColors[item.category] || categoryColors.default;
+            const isAvailableNow = getAvailabilityStatus(item).state === 'available';
             return (
               <TouchableOpacity
                 key={item.id}
@@ -112,6 +141,7 @@ export default function RadarView({ items, maxMiles, onItemPress }) {
                 onPress={() => onItemPress(item)}
                 activeOpacity={0.8}
               >
+                {isAvailableNow && <AvailablePulse color={dotColor} />}
                 <View style={[styles.itemDotInner, { borderColor: dotColor }]} />
               </TouchableOpacity>
             );
@@ -186,6 +216,13 @@ staticRing: {
     height: 8,
     borderRadius: 4,
     backgroundColor: 'rgba(255,255,255,0.6)',
+  },
+  availPulse: {
+    position: 'absolute',
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
   },
 
 });

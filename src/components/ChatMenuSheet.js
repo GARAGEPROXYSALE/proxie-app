@@ -34,14 +34,22 @@ const MUTE_OPTIONS = [
   { label: 'Forever', value: 'forever' },
 ];
 
+// ── "In the area" timer presets ──────────────────────────────
+const TIMER_OPTIONS = [
+  { label: '15 min', minutes: 15 },
+  { label: '30 min', minutes: 30 },
+  { label: '1 hour', minutes: 60 },
+  { label: '2 hours', minutes: 120 },
+];
+
 export default function ChatMenuSheet({ visible, onClose, thread, item, navigation, onOpenOffer, onOpenMeetup }) {
   const {
     messages, markUnread, pinThread, muteThread, unmuteThread,
-    archiveThread, deleteThread,
+    archiveThread, deleteThread, startChatTimer, clearThreadTimer,
   } = useApp();
 
   // Which sub-panel is showing
-  const [panel, setPanel] = useState(null); // null | 'safety' | 'mute' | 'report' | 'delete'
+  const [panel, setPanel] = useState(null); // null | 'safety' | 'mute' | 'report' | 'delete' | 'timer'
   const [reportCategory, setReportCategory] = useState(null);
   const [reportDone, setReportDone] = useState(false);
 
@@ -80,6 +88,16 @@ export default function ChatMenuSheet({ visible, onClose, thread, item, navigati
 
   const handleUnmute = () => {
     unmuteThread(currentThread.id);
+    close();
+  };
+
+  const handleSetTimer = (minutes) => {
+    startChatTimer(currentThread.id, minutes);
+    close();
+  };
+
+  const handleCancelTimer = () => {
+    clearThreadTimer(currentThread.id);
     close();
   };
 
@@ -172,6 +190,36 @@ export default function ChatMenuSheet({ visible, onClose, thread, item, navigati
       ))}
     </View>
   );
+
+  const renderTimerPanel = () => {
+    const hasTimer = !!currentThread?.timerExpiresAt;
+    return (
+      <View style={styles.panel}>
+        <View style={styles.panelHeader}>
+          <TouchableOpacity onPress={() => setPanel(null)}>
+            <Ionicons name="chevron-back" size={22} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={styles.panelTitle}>I'm in the area for...</Text>
+          <View style={{ width: 22 }} />
+        </View>
+        <Text style={styles.panelSub}>
+          Let {currentThread?.with?.name} know how long you'll be nearby for this item.
+        </Text>
+        {TIMER_OPTIONS.map((opt) => (
+          <TouchableOpacity key={opt.label} style={styles.muteOption} onPress={() => handleSetTimer(opt.minutes)} activeOpacity={0.7}>
+            <Text style={styles.muteLabel}>{opt.label}</Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.textLight} />
+          </TouchableOpacity>
+        ))}
+        {hasTimer && (
+          <TouchableOpacity style={styles.cancelTimerBtn} onPress={handleCancelTimer} activeOpacity={0.7}>
+            <Ionicons name="close-circle-outline" size={16} color={colors.danger} />
+            <Text style={styles.cancelTimerText}>Cancel current timer</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
 
   const renderReportPanel = () => {
     if (reportDone) {
@@ -285,6 +333,11 @@ export default function ChatMenuSheet({ visible, onClose, thread, item, navigati
         onPress={handleMeetupPress}
       />
       <MenuItem
+        icon="walk-outline"
+        label={currentThread?.timerExpiresAt ? "Update 'In the Area' Timer" : "I'm in the Area..."}
+        onPress={() => setPanel('timer')}
+      />
+      <MenuItem
         icon="flag-outline"
         label="Report Listing"
         onPress={() => setPanel('report')}
@@ -350,6 +403,7 @@ export default function ChatMenuSheet({ visible, onClose, thread, item, navigati
       <View style={styles.sheet}>
         {panel === 'safety' && renderSafetyPanel()}
         {panel === 'mute' && renderMutePanel()}
+        {panel === 'timer' && renderTimerPanel()}
         {panel === 'report' && renderReportPanel()}
         {panel === 'delete' && renderDeletePanel()}
         {panel === 'pinLimit' && renderPinLimitPanel()}
@@ -533,6 +587,19 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
     color: colors.text,
+  },
+  cancelTimerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 8,
+    paddingVertical: 12,
+  },
+  cancelTimerText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.danger,
   },
 
   // Report panel

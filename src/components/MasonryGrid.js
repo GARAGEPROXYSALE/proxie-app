@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
-import { getAgeBadge, recencyLabel } from '../lib/listingUtils';
+import { getAgeBadge, recencyLabel, getAvailabilityStatus } from '../lib/listingUtils';
 import colors from '../theme/colors';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -36,6 +36,7 @@ function MasonryCard({ item, onPress }) {
   const ageBadge = getAgeBadge(item.createdAt);
   const recency = recencyLabel(item.createdAt);
   const combinedViews = (item.impression_count || 0) + (item.tap_count || 0);
+  const availability = getAvailabilityStatus(item);
 
   // Promotion styles
   const isBoosted = item.is_boosted === true;
@@ -91,6 +92,16 @@ function MasonryCard({ item, onPress }) {
             color={item.saved ? '#E8472A' : '#fff'}
           />
         </TouchableOpacity>
+
+        {/* Availability status badge */}
+        {!item.sold && !item.pickedUp && (
+          <View style={[styles.availBadge, availability.state === 'available' && styles.availBadgeOn]}>
+            {availability.state === 'available' && <View style={styles.availDot} />}
+            <Text style={[styles.availBadgeText, availability.state === 'available' && styles.availBadgeTextOn]} numberOfLines={1}>
+              {availability.label}
+            </Text>
+          </View>
+        )}
 
         {/* Boosted "Nearby+" label — top-right */}
         {isBoosted && !isPromoted && (
@@ -269,6 +280,38 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.28)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+
+  // Availability badge
+  availBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 8,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    maxWidth: '70%',
+  },
+  availBadgeOn: {
+    backgroundColor: 'rgba(52,199,89,0.92)',
+  },
+  availDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#fff',
+  },
+  availBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  availBadgeTextOn: {
+    color: '#fff',
   },
 
   // Boosted pill

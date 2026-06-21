@@ -11,7 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import RadarView from '../components/RadarView';
 import MasonryGrid from '../components/MasonryGrid';
-import { PROXIMITY_SNAPS, proximityLabel, nextProximitySnap } from '../lib/listingUtils';
+import { PROXIMITY_SNAPS, proximityLabel, nextProximitySnap, getAvailabilityStatus } from '../lib/listingUtils';
 import { getUserLocation } from '../lib/location';
 import colors from '../theme/colors';
 import { categories } from '../data/mockData';
@@ -29,6 +29,7 @@ export default function NearbyScreen({ navigation }) {
   } = useApp();
   const isHost = userType === 'host';
   const [viewMode, setViewMode] = useState('radar');
+  const [activeNowOnly, setActiveNowOnly] = useState(false);
   const insets = useSafeAreaInsets();
 
   const [refreshing, setRefreshing] = useState(false);
@@ -101,6 +102,13 @@ export default function NearbyScreen({ navigation }) {
     );
   }, [filteredListings, searchQuery]);
 
+  // Map/radar view only — does NOT affect the feed grid below, which always
+  // shows every listing (with a status badge) so buyers can plan routes ahead.
+  const radarItems = useMemo(() => {
+    if (!activeNowOnly) return filteredListings;
+    return filteredListings.filter((l) => getAvailabilityStatus(l).state === 'available');
+  }, [filteredListings, activeNowOnly]);
+
   const handleSliderChange = useCallback((value) => {
     const index = Math.round(value);
     if (index !== lastSnapIndex.current) {
@@ -150,6 +158,16 @@ export default function NearbyScreen({ navigation }) {
               <View style={styles.liveDot} />
               <Text style={styles.liveText}>Live</Text>
             </View>
+            {viewMode === 'radar' && (
+              <TouchableOpacity
+                style={[styles.activeNowToggle, activeNowOnly && styles.activeNowToggleOn]}
+                onPress={() => setActiveNowOnly((v) => !v)}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.activeNowDot, activeNowOnly && styles.activeNowDotOn]} />
+                <Text style={[styles.activeNowText, activeNowOnly && styles.activeNowTextOn]}>Active now</Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
               style={styles.viewToggle}
               onPress={() => setViewMode(v => v === 'radar' ? 'list' : 'radar')}
@@ -165,7 +183,7 @@ export default function NearbyScreen({ navigation }) {
           {viewMode === 'radar' ? (
             <>
               <RadarView
-                items={filteredListings}
+                items={radarItems}
                 maxMiles={proximityMiles}
                 onItemPress={(item) => navigation.navigate('ItemDetail', { item })}
               />
@@ -189,7 +207,8 @@ export default function NearbyScreen({ navigation }) {
               </View>
               <View style={styles.scanStatus}>
                 <Text style={styles.scanCount}>
-                  {filteredListings.length} {isHost ? 'listings' : 'items'} nearby
+                  {radarItems.length} {isHost ? 'listings' : 'items'} nearby
+                  {activeNowOnly && radarItems.length !== filteredListings.length ? ` · active now` : ''}
                 </Text>
                 <Text style={styles.scanSub}>
                   {isHost ? 'Tap a dot to view a listing' : 'Tap a dot to see the item'}
@@ -537,6 +556,35 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  activeNowToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: colors.background,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  activeNowToggleOn: {
+    backgroundColor: colors.success + '20',
+  },
+  activeNowDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.textLight,
+  },
+  activeNowDotOn: {
+    backgroundColor: colors.success,
+  },
+  activeNowText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  activeNowTextOn: {
+    color: colors.success,
   },
   radiusSliderContainer: {
     width: '100%',

@@ -7,7 +7,9 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp } from '../context/AppContext';
 import { markMessagesRead } from '../lib/db';
+import { getTimerStatus } from '../lib/listingUtils';
 import ChatMenuSheet from '../components/ChatMenuSheet';
+import ChatTimerBar from '../components/ChatTimerBar';
 import OfferModal from '../components/OfferModal';
 import MeetupModal from '../components/MeetupModal';
 import UserActionSheet from '../components/UserActionSheet';
@@ -49,13 +51,14 @@ function SafeMeetupBanner({ onDismiss }) {
 
 export default function ChatScreen({ navigation, route }) {
   const { thread, item, prefill } = route.params;
-  const { sendMessage, messages, user, markRead, openRatingPrompt } = useApp();
+  const { sendMessage, messages, user, markRead, openRatingPrompt, extendChatTimer } = useApp();
   const [text, setText] = useState(prefill || '');
   const [menuOpen, setMenuOpen] = useState(false);
   const [offerOpen, setOfferOpen] = useState(false);
   const [meetupOpen, setMeetupOpen] = useState(false);
   const [sellerSheetOpen, setSellerSheetOpen] = useState(false);
   const [showSafetyBanner, setShowSafetyBanner] = useState(false);
+  const [, forceTick] = useState(0);
   const flatRef = useRef(null);
 
   // Clear unread count when conversation opens (local state + DB)
@@ -95,6 +98,18 @@ export default function ChatScreen({ navigation, route }) {
 
   // Always read latest thread from context
   const currentThread = messages.find((m) => m.id === thread.id) || thread;
+
+  // Re-render every second while a timer is active so the dim state flips live on expiry
+  useEffect(() => {
+    if (!currentThread.timerExpiresAt) return;
+    const interval = setInterval(() => forceTick((t) => t + 1), 1000);
+    return () => clearInterval(interval);
+  }, [currentThread.timerExpiresAt]);
+
+  const timerStatus = currentThread.timerExpiresAt
+    ? getTimerStatus(currentThread.timerExpiresAt, currentThread.timerDurationMs || 60 * 60000)
+    : null;
+  const isTimerExpired = !!timerStatus?.expired;
 
   const quickReplies = [
     'Is this still available?',
@@ -184,8 +199,8 @@ export default function ChatScreen({ navigation, route }) {
             : msg.type === 'meetup'
             ? renderMeetupBubble(msg, isMe)
             : (
-              <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleThem]}>
-                <Text style={[styles.bubbleText, isMe && styles.bubbleTextMe]}>{msg.text}</Text>
+              <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleThem, isTimerExpired && styles.bubbleDimmed]}>
+                <Text style={[styles.bubbleText, isMe && styles.bubbleTextMe, isTimerExpired && styles.bubbleTextDimmed]}>{msg.text}</Text>
               </View>
             )
           }
@@ -231,12 +246,16 @@ export default function ChatScreen({ navigation, route }) {
           </TouchableOpacity>
         </View>
 
+        {/* "In the area" timer */}
+        <ChatTimerBar thread={currentThread} onExtend={(minutes) => extendChatTimer(currentThread.id, minutes)} />
+
         {/* Messages */}
         <FlatList
           ref={flatRef}
           data={currentThread.messages}
           keyExtractor={(m) => m.id}
           renderItem={renderMessage}
+          style={isTimerExpired && styles.dimmedList}
           contentContainerStyle={styles.messageList}
           onContentSizeChange={() => flatRef.current?.scrollToEnd({ animated: false })}
           ListHeaderComponent={() => (
@@ -420,6 +439,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.text,
     lineHeight: 20,
+  },
+  bubbleDimmed: {
+    backgroundColor: '#E2E2E5',
+    opacity: 0.7,
+  },
+  bubbleTextDimmed: {
+    color: colors.textLight,
+  },
+  dimmedList: {
+    backgroundColor: '#F4F4F5',
   },
   bubbleTextMe: {
     color: '#fff',

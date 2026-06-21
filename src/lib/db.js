@@ -67,6 +67,8 @@ export async function insertListing(listing) {
     latitude: listing.latitude,
     longitude: listing.longitude,
     address: listing.address,
+    availability_type: listing.availabilityType || 'anytime',
+    schedule: listing.schedule || [],
   };
 
   // Try with condition first; if the column doesn't exist in this DB, retry without it
@@ -82,6 +84,14 @@ export async function updateListingStatus(listingId, status) {
   const { error } = await supabase
     .from('listings')
     .update({ status })
+    .eq('id', listingId);
+  if (error) throw error;
+}
+
+export async function updateListingAvailability(listingId, { availabilityType, schedule }) {
+  const { error } = await supabase
+    .from('listings')
+    .update({ availability_type: availabilityType, schedule: schedule || [] })
     .eq('id', listingId);
   if (error) throw error;
 }
@@ -294,6 +304,36 @@ export function subscribeToMessages(conversationId, callback) {
     .subscribe();
 }
 
+// ── "In the area" chat timer ────────────────────────────────────
+
+export async function setConversationTimer(conversationId, expiresAt, extendedCount = 0) {
+  const { error } = await supabase
+    .from('conversations')
+    .update({ timer_expires_at: expiresAt, timer_extended_count: extendedCount })
+    .eq('id', conversationId);
+  if (error) throw error;
+}
+
+export async function clearConversationTimer(conversationId) {
+  const { error } = await supabase
+    .from('conversations')
+    .update({ timer_expires_at: null, timer_extended_count: 0 })
+    .eq('id', conversationId);
+  if (error) throw error;
+}
+
+// Subscribe to timer changes on a conversation row (so both buyer + seller see live updates)
+export function subscribeToConversationTimer(conversationId, callback) {
+  return supabase
+    .channel(`conversation-timer:${conversationId}`)
+    .on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'conversations', filter: `id=eq.${conversationId}` },
+      (payload) => callback(payload.new)
+    )
+    .subscribe();
+}
+
 // ── Wishlist ──────────────────────────────────────────────────
 
 export async function fetchWishlist(userId) {
@@ -373,6 +413,8 @@ function normalizeListingFromDB(row) {
     seller_type: row.seller_type || 'individual',
     store_id: row.store_id,
     store: row.store || null,
+    availability_type: row.availability_type || 'anytime',
+    schedule: row.schedule || [],
     seller: {
       id: seller.id || row.seller_id,
       name: seller.display_name || 'Seller',
@@ -413,6 +455,8 @@ function normalizeConversation(row, myId) {
     unread: 0,
     pinned: isMe(row.buyer_id) ? row.buyer_pinned : row.seller_pinned,
     archived: isMe(row.buyer_id) ? row.buyer_archived : row.seller_archived,
+    timerExpiresAt: row.timer_expires_at || null,
+    timerExtendedCount: row.timer_extended_count || 0,
     messages: [],
   };
 }
