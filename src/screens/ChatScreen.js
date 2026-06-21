@@ -325,22 +325,26 @@ export default function ChatScreen({ navigation, route }) {
 
         {/* Input */}
         <View style={styles.inputRow}>
-          {isBuyer && (
-            <TimerIconButton
-              active={!!currentThread.timerExpiresAt}
-              status={timerStatus}
-              onPress={handleTimerBtnPress}
+          <View style={styles.inputWrapper}>
+            <TextInput
+              style={[styles.input, isBuyer && styles.inputWithIcon]}
+              placeholder="Message..."
+              placeholderTextColor={colors.textLight}
+              value={text}
+              onChangeText={setText}
+              multiline
+              maxLength={500}
             />
-          )}
-          <TextInput
-            style={styles.input}
-            placeholder="Message..."
-            placeholderTextColor={colors.textLight}
-            value={text}
-            onChangeText={setText}
-            multiline
-            maxLength={500}
-          />
+            {isBuyer && (
+              <View style={styles.timerBtnOverlay}>
+                <TimerIconButton
+                  active={!!currentThread.timerExpiresAt}
+                  status={timerStatus}
+                  onPress={handleTimerBtnPress}
+                />
+              </View>
+            )}
+          </View>
           <TouchableOpacity
             style={[styles.sendBtn, !text.trim() && styles.sendBtnDisabled]}
             onPress={handleSend}
@@ -694,8 +698,11 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
-  input: {
+  inputWrapper: {
     flex: 1,
+    position: 'relative',
+  },
+  input: {
     backgroundColor: colors.background,
     borderRadius: 20,
     paddingHorizontal: 16,
@@ -705,6 +712,14 @@ const styles = StyleSheet.create({
     maxHeight: 100,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  inputWithIcon: {
+    paddingRight: 42,
+  },
+  timerBtnOverlay: {
+    position: 'absolute',
+    right: 5,
+    bottom: 4,
   },
   sendBtn: {
     width: 42,

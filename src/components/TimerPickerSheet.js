@@ -9,15 +9,18 @@ const TIMER_OPTIONS = [
   { label: '30 min', minutes: 30 },
   { label: '1 hour', minutes: 60 },
   { label: '2 hours', minutes: 120 },
+  { label: '3 hours', minutes: 180 },
 ];
 
 const COLOR_MAP = { success: colors.success, warning: colors.warning, danger: colors.danger };
 
 // Standalone bottom sheet for the buyer's "in the area" timer — opened directly from the
-// composer button. Picker mode when idle, manage mode (remaining time + Extend/Cancel) when active.
+// composer button. Picker mode when idle, manage mode (remaining time + Extend/Cancel) when
+// active, and an "add more time" chooser when the buyer taps Extend.
 export default function TimerPickerSheet({ visible, onClose, thread, onStart, onExtend, onCancel }) {
   const slideY = useRef(new Animated.Value(400)).current;
   const [, forceTick] = useState(0);
+  const [choosingExtend, setChoosingExtend] = useState(false);
 
   useEffect(() => {
     if (visible) {
@@ -25,6 +28,11 @@ export default function TimerPickerSheet({ visible, onClose, thread, onStart, on
     } else {
       Animated.timing(slideY, { toValue: 400, duration: 200, useNativeDriver: false }).start();
     }
+  }, [visible]);
+
+  // Reset to manage view each time the sheet opens
+  useEffect(() => {
+    if (visible) setChoosingExtend(false);
   }, [visible]);
 
   // Tick every second while open + active so remaining time stays live
@@ -39,6 +47,7 @@ export default function TimerPickerSheet({ visible, onClose, thread, onStart, on
   const isActive = !!thread?.timerExpiresAt;
   const status = isActive ? getTimerStatus(thread.timerExpiresAt, thread.timerDurationMs || 60 * 60000) : null;
   const barColor = status ? COLOR_MAP[status.color] || colors.success : colors.primary;
+  const showOptions = !isActive || choosingExtend;
 
   return (
     <Modal transparent visible={visible} animationType="none" onRequestClose={onClose}>
@@ -49,32 +58,56 @@ export default function TimerPickerSheet({ visible, onClose, thread, onStart, on
 
           <View style={styles.header}>
             <View style={[styles.iconWrap, { backgroundColor: barColor + '18' }]}>
-              <Ionicons name="hourglass" size={26} color={barColor} />
+              <Ionicons name="timer-outline" size={26} color={barColor} />
             </View>
             <Text style={styles.title}>
-              {isActive
-                ? (status.expired ? 'Timer expired' : "You're in the area")
-                : "I'm in the area for..."}
+              {choosingExtend
+                ? 'Add how much time?'
+                : isActive
+                  ? (status.expired ? 'Timer expired' : "You're in the area")
+                  : "I'm in the area for..."}
             </Text>
             <Text style={styles.subtitle}>
-              {isActive
-                ? `Let ${thread?.with?.name} know if you need more time.`
-                : `Let ${thread?.with?.name} know how long you'll be nearby for this item.`}
+              {choosingExtend
+                ? `Let ${thread?.with?.name} know how much longer you'll be around.`
+                : isActive
+                  ? `Let ${thread?.with?.name} know if you need more time.`
+                  : `Let ${thread?.with?.name} know how long you'll be nearby for this item.`}
             </Text>
           </View>
 
-          {isActive ? (
+          {isActive && !choosingExtend && !status.expired && (
+            <View style={styles.remainingBox}>
+              <Text style={[styles.remainingValue, { color: barColor }]}>{status.label}</Text>
+              <Text style={styles.remainingLabel}>remaining</Text>
+            </View>
+          )}
+
+          {showOptions ? (
             <>
-              {!status.expired && (
-                <View style={styles.remainingBox}>
-                  <Text style={[styles.remainingValue, { color: barColor }]}>{status.label}</Text>
-                  <Text style={styles.remainingLabel}>remaining</Text>
-                </View>
+              {TIMER_OPTIONS.map((opt) => (
+                <TouchableOpacity
+                  key={opt.label}
+                  style={styles.option}
+                  onPress={() => (choosingExtend ? onExtend(opt.minutes) : onStart(opt.minutes))}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.optionLabel}>{opt.label}</Text>
+                  <Ionicons name="chevron-forward" size={16} color={colors.textLight} />
+                </TouchableOpacity>
+              ))}
+              {choosingExtend && (
+                <TouchableOpacity style={styles.backBtn} onPress={() => setChoosingExtend(false)} activeOpacity={0.7}>
+                  <Text style={styles.backBtnText}>Back</Text>
+                </TouchableOpacity>
               )}
+            </>
+          ) : (
+            <>
               <View style={styles.manageRow}>
-                <TouchableOpacity style={styles.extendBtn} onPress={() => onExtend(30)} activeOpacity={0.85}>
+                <TouchableOpacity style={styles.extendBtn} onPress={() => setChoosingExtend(true)} activeOpacity={0.85}>
                   <Ionicons name="add-circle-outline" size={16} color="#fff" />
-                  <Text style={styles.extendBtnText}>Extend 30 min</Text>
+                  <Text style={styles.extendBtnText}>Extend</Text>
                 </TouchableOpacity>
               </View>
               <TouchableOpacity style={styles.cancelBtn} onPress={onCancel} activeOpacity={0.7}>
@@ -82,13 +115,6 @@ export default function TimerPickerSheet({ visible, onClose, thread, onStart, on
                 <Text style={styles.cancelBtnText}>Cancel timer</Text>
               </TouchableOpacity>
             </>
-          ) : (
-            TIMER_OPTIONS.map((opt) => (
-              <TouchableOpacity key={opt.label} style={styles.option} onPress={() => onStart(opt.minutes)} activeOpacity={0.7}>
-                <Text style={styles.optionLabel}>{opt.label}</Text>
-                <Ionicons name="chevron-forward" size={16} color={colors.textLight} />
-              </TouchableOpacity>
-            ))
           )}
         </Animated.View>
       </View>
@@ -122,6 +148,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 15, marginBottom: 8,
   },
   optionLabel: { fontSize: 15, fontWeight: '500', color: colors.text },
+
+  backBtn: { alignItems: 'center', paddingVertical: 10, marginTop: 2 },
+  backBtnText: { fontSize: 14, fontWeight: '600', color: colors.textSecondary },
 
   remainingBox: { alignItems: 'center', marginBottom: 20 },
   remainingValue: { fontSize: 32, fontWeight: '800' },

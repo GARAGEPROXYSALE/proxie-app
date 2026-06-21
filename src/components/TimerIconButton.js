@@ -4,9 +4,9 @@ import { Ionicons } from '@expo/vector-icons';
 import colors from '../theme/colors';
 
 const COLOR_MAP = { success: colors.success, warning: colors.warning, danger: colors.danger };
-const SIZE = 34;
+const SIZE = 30;
 const HALF = SIZE / 2;
-const STROKE = 2.5;
+const STROKE = 2;
 
 // Circular progress ring built from two rotating half-circle clips — no SVG dependency.
 // percent: 1 = full time remaining (full ring), 0 = none.
@@ -42,11 +42,11 @@ export default function TimerIconButton({ active, status, onPress }) {
   const color = status ? COLOR_MAP[status.color] || colors.success : colors.textSecondary;
 
   return (
-    <TouchableOpacity style={styles.btn} onPress={onPress} activeOpacity={0.7}>
+    <TouchableOpacity style={styles.btn} onPress={onPress} activeOpacity={0.6} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
       {active && status && !status.expired && <ProgressRing percent={status.percent} color={color} />}
       <Ionicons
-        name={active ? 'hourglass' : 'hourglass-outline'}
-        size={18}
+        name={active ? 'timer' : 'timer-outline'}
+        size={20}
         color={active ? color : colors.textSecondary}
       />
     </TouchableOpacity>
@@ -55,12 +55,11 @@ export default function TimerIconButton({ active, status, onPress }) {
 
 const styles = StyleSheet.create({
   btn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: SIZE,
+    height: SIZE,
+    borderRadius: HALF,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.cardBackground,
   },
   ringWrap: {
     position: 'absolute',
