@@ -5,10 +5,11 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { getUserLocation } from '../lib/location';
-import { uploadListingPhoto } from '../lib/db';
+import { uploadListingPhoto, fetchOutpostFee } from '../lib/db';
 import { supabase } from '../lib/supabase';
 import { sanitizeText, sanitizePrice, validateListingPayload } from '../lib/sanitize';
 import colors from '../theme/colors';
@@ -18,9 +19,10 @@ const CATEGORIES = ['Furniture', 'Electronics', 'Clothing', 'Books', 'Kitchen', 
 const TICKET_TYPES = ['General Admission', 'Reserved', 'VIP', 'Suite'];
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
+const DATE_RE = /^(0[1-9]|1[0-2])\/(0[1-9]|[12]\d|3[01])\/20\d{2}$/;
 
 export default function CreateListingScreen({ navigation }) {
-  const { addListing, user } = useApp();
+  const { addListing, user, payOutpostFee, beginOutpostMonitoring } = useApp();
 
   // Shared
   const [category, setCategory] = useState('');

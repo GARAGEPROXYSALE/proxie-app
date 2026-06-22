@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
-import { Animated } from 'react-native';
+import { Animated, Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { mockListings, currentUser, mockMessages } from '../data/mockData';
 import { supabase } from '../lib/supabase';
@@ -9,10 +9,12 @@ import {
   fetchWishlist, insertWishlistEntry, deleteWishlistEntry,
   insertListing, updateListingStatus, repostListingRPC, incrementViewsRPC,
   updateListingAvailability, setConversationTimer, clearConversationTimer,
+  createOutpostCheckoutUrl, fetchInterestedBuyers, setListingSaved, fetchUnconfirmedOutposts,
 } from '../lib/db';
 import { getUserLocation, distanceMiles, bearingAngle } from '../lib/location';
 import { isStale, PROXIMITY_SNAPS, getTimerStatus } from '../lib/listingUtils';
 import { registerForPushNotificationsAsync, savePushToken, sendPushNotification } from '../lib/pushNotifications';
+import { startOutpostLocationMonitoring } from '../lib/outpostLocation';
 
 const AppContext = createContext(null);
 
@@ -216,6 +218,12 @@ export function AppProvider({ children }) {
       // an EAS projectId or on a simulator. Fire-and-forget either way.
       registerForPushNotificationsAsync()
         .then((token) => { if (token) savePushToken(profile.id, token); })
+        .catch(() => {});
+
+      // If this seller already has an unconfirmed Outpost listing (e.g. they
+      // killed the app and reopened it before arriving), resume monitoring.
+      fetchUnconfirmedOutposts(profile.id)
+        .then((outposts) => { if (outposts.length > 0) startOutpostLocationMonitoring().catch(() => {}); })
         .catch(() => {});
 
       // Load blocks
@@ -459,10 +467,22 @@ export function AppProvider({ children }) {
   // ── Listings ─────────────────────────────────────────────────
 
   const toggleSaved = useCallback((id) => {
+    let nowSaved = false;
+    let isOutpost = false;
     setListings((prev) =>
-      prev.map((l) => (l.id === id ? { ...l, saved: !l.saved } : l))
+      prev.map((l) => {
+        if (l.id !== id) return l;
+        nowSaved = !l.saved;
+        isOutpost = !!l.is_outpost;
+        return { ...l, saved: nowSaved };
+      })
     );
-  }, []);
+    // Outpost saves double as a subscription to the "confirmed" push notification —
+    // persist to listing_saves so the server-side trigger can find this buyer later.
+    if (isOutpost && user.id && !String(id).startsWith('temp-')) {
+      setListingSaved(user.id, id, nowSaved).catch(() => {});
+    }
+  }, [user.id]);
 
   const setListingAvailability = useCallback((listingId, { availabilityType, schedule }) => {
     setListings((prev) =>
@@ -497,12 +517,33 @@ export function AppProvider({ children }) {
     try {
       const saved = await insertListing(listing);
       setListings((prev) => prev.map((l) => l.id === optimistic.id ? { ...saved, seller: optimistic.seller, angle: optimistic.angle, distance: 0, saved: false } : l));
+      return saved;
     } catch (e) {
       // Roll back optimistic listing and surface the error to the caller
       setListings((prev) => prev.filter((l) => l.id !== optimistic.id));
       throw e;
     }
   }, [user]);
+
+  // ── Outpost ──────────────────────────────────────────────────
+
+  // Opens Stripe Checkout in the system browser for the Outpost posting fee.
+  // Never an in-app WebView — this is what keeps it an "external purchase
+  // link" rather than something requiring Apple IAP on iOS.
+  const payOutpostFee = useCallback(async (listingId) => {
+    const url = await createOutpostCheckoutUrl(listingId);
+    await Linking.openURL(url);
+  }, []);
+
+  // Call right after a seller successfully publishes an Outpost listing so
+  // their device starts watching for arrival at the listing's coordinates.
+  const beginOutpostMonitoring = useCallback(async () => {
+    await startOutpostLocationMonitoring();
+  }, []);
+
+  const getInterestedBuyersForListing = useCallback(async (listingId) => {
+    return fetchInterestedBuyers(listingId);
+  }, []);
 
   const incrementViews = useCallback((id) => {
     setListings((prev) =>
@@ -892,6 +933,10 @@ export function AppProvider({ children }) {
         pickUpListing,
         repostListing,
         setListingAvailability,
+        // Outpost
+        payOutpostFee,
+        beginOutpostMonitoring,
+        getInterestedBuyersForListing,
         // Messages
         sendMessage,
         startConversation,

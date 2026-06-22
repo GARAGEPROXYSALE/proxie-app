@@ -15,8 +15,10 @@
       "bundleIdentifier": "com.proxie.app",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Proxie needs your location to show nearby garage sale items.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Proxie uses your location in the background to automatically confirm your Outpost listing as live once you arrive, even if the app isn't open.",
         "NSCameraUsageDescription": "Proxie needs camera access to take photos of your listings.",
-        "NSPhotoLibraryUsageDescription": "Proxie needs photo library access to add photos to your listings."
+        "NSPhotoLibraryUsageDescription": "Proxie needs photo library access to add photos to your listings.",
+        "UIBackgroundModes": ["location"]
       }
     },
     "android": {
@@ -27,9 +29,12 @@
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
-        "NOTIFICATIONS"
+        "NOTIFICATIONS",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION"
       ],
       "useNextNotificationsApi": true
     },
@@ -49,7 +54,16 @@
           "icon": "./assets/icon.png",
           "color": "#5B9BD5"
         }
-      ]
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Proxie uses your location in the background to automatically confirm your Outpost listing as live once you arrive.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ],
+      "expo-task-manager"
     ],
     "extra": {
       "eas": {

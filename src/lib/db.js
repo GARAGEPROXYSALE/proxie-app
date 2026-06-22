@@ -16,6 +16,9 @@ export async function fetchListings() {
     `)
     .eq('status', 'active')
     .gt('expires_at', new Date().toISOString())
+    // Outpost listings only enter the public feed once the posting fee clears —
+    // otherwise a seller gets free exposure before paying.
+    .or('is_outpost.is.false,outpost_fee_paid.eq.true')
     .order('created_at', { ascending: false });
 
   if (error) throw error;
@@ -69,6 +72,9 @@ export async function insertListing(listing) {
     address: listing.address,
     availability_type: listing.availabilityType || 'anytime',
     schedule: listing.schedule || [],
+    is_outpost: listing.isOutpost || false,
+    outpost_scheduled_at: listing.outpostScheduledAt || null,
+    outpost_fee_paid: false,
   };
 
   // Try with condition first; if the column doesn't exist in this DB, retry without it
@@ -100,6 +106,82 @@ export async function repostListingRPC(listingId) {
   const { data, error } = await supabase.rpc('repost_listing', { original_id: listingId });
   if (error) throw error;
   return data; // new listing id
+}
+
+// ── Outpost ──────────────────────────────────────────────────
+
+export async function fetchOutpostFee() {
+  const { data, error } = await supabase
+    .from('app_config')
+    .select('value')
+    .eq('key', 'outpost_fee_usd')
+    .single();
+  if (error) throw error;
+  return Number(data?.value ?? 5.99);
+}
+
+// Opens a Stripe Checkout Session via the create-outpost-checkout Edge
+// Function and returns its hosted URL. The caller is responsible for
+// opening it in the system browser (Linking.openURL) — never an in-app
+// WebView — to qualify as an external purchase link.
+export async function createOutpostCheckoutUrl(listingId) {
+  const { data, error } = await supabase.functions.invoke('create-outpost-checkout', {
+    body: { listing_id: listingId },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data.url;
+}
+
+// Called by the seller's own device when their background/foreground location
+// task detects them within range of their Outpost listing's coordinates.
+export async function confirmOutpostRPC(listingId) {
+  const { error } = await supabase.rpc('confirm_outpost', { listing_id: listingId });
+  if (error) throw error;
+}
+
+export async function fetchInterestedBuyers(listingId) {
+  const { data, error } = await supabase.rpc('get_interested_buyers', { p_listing_id: listingId });
+  if (error) throw error;
+  return (data || []).map((row) => ({
+    buyerId: row.buyer_id,
+    name: row.buyer_name || 'Buyer',
+    avatarUrl: row.buyer_avatar_url || null,
+    conversationId: row.conversation_id,
+    firstMessageAt: row.first_message_at,
+  }));
+}
+
+// Toggling save on an Outpost listing both bookmarks it and subscribes the
+// buyer to the "outpost confirmed" push notification.
+export async function setListingSaved(userId, listingId, saved) {
+  if (saved) {
+    const { error } = await supabase
+      .from('listing_saves')
+      .upsert({ user_id: userId, listing_id: listingId }, { onConflict: 'user_id,listing_id' });
+    if (error) throw error;
+  } else {
+    const { error } = await supabase
+      .from('listing_saves')
+      .delete()
+      .eq('user_id', userId)
+      .eq('listing_id', listingId);
+    if (error) throw error;
+  }
+}
+
+// Outpost listings the current user (as seller) has posted that haven't
+// confirmed yet — used to decide whether to start background location monitoring.
+export async function fetchUnconfirmedOutposts(userId) {
+  const { data, error } = await supabase
+    .from('listings')
+    .select('id, latitude, longitude, outpost_scheduled_at')
+    .eq('seller_id', userId)
+    .eq('is_outpost', true)
+    .eq('outpost_confirmed', false)
+    .eq('status', 'active');
+  if (error) throw error;
+  return data || [];
 }
 
 export async function incrementViewsRPC(listingId) {
@@ -415,6 +497,12 @@ function normalizeListingFromDB(row) {
     store: row.store || null,
     availability_type: row.availability_type || 'anytime',
     schedule: row.schedule || [],
+    is_outpost: row.is_outpost || false,
+    outpost_scheduled_at: row.outpost_scheduled_at ? new Date(row.outpost_scheduled_at).getTime() : null,
+    outpost_confirmed: row.outpost_confirmed || false,
+    outpost_confirmed_at: row.outpost_confirmed_at ? new Date(row.outpost_confirmed_at).getTime() : null,
+    outpost_fee_paid: row.outpost_fee_paid || false,
+    outpost_fee_amount: row.outpost_fee_amount != null ? Number(row.outpost_fee_amount) : null,
     seller: {
       id: seller.id || row.seller_id,
       name: seller.display_name || 'Seller',
