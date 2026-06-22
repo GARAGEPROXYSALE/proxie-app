@@ -32,23 +32,20 @@ const DEFAULT_ITEM_COLLECTIONS = {
 // ── Feed ranking helpers ──────────────────────────────────────
 
 /**
- * Sort and inject promoted/boosted listings into the feed.
+ * Sort and inject boosted listings into the feed.
  * Rules:
  *  - Sort ascending by distance (nearest first)
  *  - is_boosted cards are placed after standard listings at the same distance tier
- *  - is_promoted card injected at position 11+ (never first), max 1 per 10 standard cards
- *  - Feed caps: max 10% boosted, max 1 promoted per 10 standard cards
+ *  - Feed cap: max 10% boosted
  */
 function rankListings(listings) {
-  const standard = listings.filter((l) => !l.is_boosted && !l.is_promoted);
-  const boosted = listings.filter((l) => l.is_boosted && !l.is_promoted);
-  const promoted = listings.filter((l) => l.is_promoted);
+  const standard = listings.filter((l) => !l.is_boosted);
+  const boosted = listings.filter((l) => l.is_boosted);
 
   // Sort each group by distance ascending
   const byDist = (a, b) => (a.distance || 0) - (b.distance || 0);
   standard.sort(byDist);
   boosted.sort(byDist);
-  promoted.sort(byDist);
 
   // Cap boosted at 10% of total
   const maxBoosted = Math.max(1, Math.floor(listings.length * 0.1));
@@ -71,23 +68,7 @@ function rankListings(listings) {
     bIdx++;
   }
 
-  // Inject promoted cards: max 1 per 10 standard cards, never at position 0
-  // Inject at position 11 (index 10) if feed is large enough, else at the end
-  if (promoted.length === 0) return merged;
-
-  const result = [...merged];
-  let promoInserted = 0;
-  for (let p = 0; p < promoted.length; p++) {
-    const insertPos = 10 + promoInserted * 11; // position 11, 22, etc.
-    if (insertPos < result.length) {
-      result.splice(insertPos, 0, promoted[p]);
-    } else if (result.length > 0) {
-      result.push(promoted[p]);
-    }
-    promoInserted++;
-  }
-
-  return result;
+  return merged;
 }
 
 export function AppProvider({ children }) {

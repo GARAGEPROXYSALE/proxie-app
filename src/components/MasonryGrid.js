@@ -38,25 +38,16 @@ function MasonryCard({ item, onPress }) {
   const combinedViews = (item.impression_count || 0) + (item.tap_count || 0);
   const availability = getAvailabilityStatus(item);
   const isPendingOutpost = item.is_outpost && !item.outpost_confirmed;
-
-  // Promotion styles
   const isBoosted = item.is_boosted === true;
-  const isPromoted = item.is_promoted === true;
 
   const handleLike = (e) => {
     e.stopPropagation?.();
     toggleSaved(item.id);
   };
 
-  // Card border style for promoted
-  const cardStyle = [
-    styles.card,
-    isPromoted && styles.promotedCard,
-  ];
-
   return (
     <TouchableOpacity
-      style={cardStyle}
+      style={styles.card}
       onPress={onPress}
       activeOpacity={0.93}
     >
@@ -118,16 +109,9 @@ function MasonryCard({ item, onPress }) {
         )}
 
         {/* Boosted "+" label — top-right */}
-        {isBoosted && !isPromoted && (
+        {isBoosted && (
           <View style={styles.boostedPill}>
             <Text style={styles.boostedPillText}>+</Text>
-          </View>
-        )}
-
-        {/* Promoted label — top-right */}
-        {isPromoted && (
-          <View style={styles.promotedPill}>
-            <Text style={styles.promotedPillText}>Promoted</Text>
           </View>
         )}
 
@@ -237,10 +221,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
-  },
-  promotedCard: {
-    borderWidth: 1.5,
-    borderColor: '#0D9488',
   },
 
   // Boosted left-edge accent
@@ -370,22 +350,6 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   boostedPillText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: '700',
-  },
-
-  // Promoted pill
-  promotedPill: {
-    position: 'absolute',
-    top: 8,
-    right: 44,
-    backgroundColor: '#0D9488',
-    borderRadius: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  promotedPillText: {
     color: '#fff',
     fontSize: 10,
     fontWeight: '700',
