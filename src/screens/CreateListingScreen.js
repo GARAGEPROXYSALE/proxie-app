@@ -53,6 +53,13 @@ export default function CreateListingScreen({ navigation }) {
   const [scheduleStart, setScheduleStart] = useState('09:00');
   const [scheduleEnd, setScheduleEnd] = useState('17:00');
 
+  // Outpost — pre-post for a future date/location, GPS auto-confirms it live
+  const [isOutpost, setIsOutpost] = useState(false);
+  const [outpostAddress, setOutpostAddress] = useState('');
+  const [outpostDate, setOutpostDate] = useState('');
+  const [outpostTime, setOutpostTime] = useState('');
+  const [outpostFee, setOutpostFee] = useState(5.99);
+
   const isTickets = category === 'Tickets';
 
   const isScheduleValid = availabilityType === 'anytime' || (
@@ -62,7 +69,21 @@ export default function CreateListingScreen({ navigation }) {
     scheduleStart < scheduleEnd
   );
 
-  const isValid = photos.length > 0 && isScheduleValid && (
+  const outpostScheduledDate = (() => {
+    if (!DATE_RE.test(outpostDate) || !TIME_RE.test(outpostTime)) return null;
+    const [month, day, year] = outpostDate.split('/').map(Number);
+    const [hour, minute] = outpostTime.split(':').map(Number);
+    const d = new Date(year, month - 1, day, hour, minute);
+    return Number.isNaN(d.getTime()) ? null : d;
+  })();
+
+  const isOutpostValid = !isOutpost || (
+    outpostAddress.trim().length > 4 &&
+    outpostScheduledDate &&
+    outpostScheduledDate.getTime() > Date.now()
+  );
+
+  const isValid = photos.length > 0 && isScheduleValid && isOutpostValid && (
     isTickets
       ? eventName.trim() && price.trim() && eventDate.trim() && venue.trim() && numTickets
       : title.trim() && price.trim() && description.trim() && category
@@ -74,6 +95,7 @@ export default function CreateListingScreen({ navigation }) {
 
   useEffect(() => {
     getUserLocation().then((loc) => setGpsCoords(loc)).catch(() => {});
+    fetchOutpostFee().then(setOutpostFee).catch(() => {});
   }, []);
 
   const handleAddPhoto = async () => {
@@ -143,6 +165,10 @@ export default function CreateListingScreen({ navigation }) {
     if (photos.length === 0) { setPublishError('At least one photo is required.'); return; }
     const errors = validateListingPayload({ title: cleanTitle, price: cleanPrice, description: cleanDesc, category });
     if (errors.length > 0) { setPublishError(errors[0]); return; }
+    if (isOutpost && !isOutpostValid) {
+      setPublishError('Enter the Outpost address and a future date/time.');
+      return;
+    }
 
     setPublishing(true);
     try {
@@ -156,20 +182,48 @@ export default function CreateListingScreen({ navigation }) {
         uploadedUrls = photos.map((a) => (typeof a === 'string' ? a : a.uri));
       }
 
-      await addListing({
+      // Outpost listings target a future location the seller isn't at yet —
+      // geocode the typed address instead of using the device's current GPS.
+      let outpostLat = null;
+      let outpostLon = null;
+      if (isOutpost) {
+        const geocoded = await Location.geocodeAsync(outpostAddress.trim()).catch(() => []);
+        if (!geocoded?.[0]) {
+          setPublishError("Couldn't find that address. Try adding a city or zip code.");
+          setPublishing(false);
+          return;
+        }
+        outpostLat = geocoded[0].latitude;
+        outpostLon = geocoded[0].longitude;
+      }
+
+      const saved = await addListing({
         title: cleanTitle,
         price: cleanPrice,
         description: cleanDesc,
         condition: isTickets ? 'New' : condition,
         category,
         photos: uploadedUrls,
-        latitude: gpsCoords?.latitude || null,
-        longitude: gpsCoords?.longitude || null,
+        latitude: isOutpost ? outpostLat : (gpsCoords?.latitude || null),
+        longitude: isOutpost ? outpostLon : (gpsCoords?.longitude || null),
+        address: isOutpost ? outpostAddress.trim() : null,
         availabilityType,
         schedule: availabilityType === 'scheduled'
           ? [{ days: scheduleDays, start: scheduleStart, end: scheduleEnd }]
           : [],
+        isOutpost,
+        outpostScheduledAt: isOutpost ? outpostScheduledDate.toISOString() : null,
       });
+
+      if (isOutpost && saved?.id) {
+        // Opens Stripe Checkout in the system browser — the listing already
+        // exists (outpost_fee_paid: false) and stays hidden from the public
+        // feed until the webhook flips that flag.
+        await payOutpostFee(saved.id).catch(() => {
+          setPublishError('Listing saved, but the payment page could not be opened. Open it again from My Garage to pay the Outpost fee.');
+        });
+        await beginOutpostMonitoring().catch(() => {});
+      }
 
       navigation.goBack();
     } catch (e) {
@@ -193,7 +247,9 @@ export default function CreateListingScreen({ navigation }) {
             {publishing ? (
               <ActivityIndicator size="small" color={colors.primary} />
             ) : (
-              <Text style={[styles.publishBtn, !isValid && styles.publishBtnDisabled]}>Publish</Text>
+              <Text style={[styles.publishBtn, !isValid && styles.publishBtnDisabled]}>
+                {isOutpost ? 'Pay & Post' : 'Publish'}
+              </Text>
             )}
           </TouchableOpacity>
         </View>
@@ -526,6 +582,87 @@ export default function CreateListingScreen({ navigation }) {
               )}
             </View>
 
+            {/* Outpost */}
+            {!isTickets && (
+              <View style={styles.field}>
+                <TouchableOpacity
+                  style={styles.outpostToggleRow}
+                  onPress={() => setIsOutpost((v) => !v)}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.outpostToggleLeft}>
+                    <View style={[styles.outpostIconWrap, isOutpost && styles.outpostIconWrapActive]}>
+                      <Ionicons name="flag-outline" size={16} color={isOutpost ? '#fff' : colors.primary} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.outpostToggleTitle}>Post as Outpost</Text>
+                      <Text style={styles.outpostToggleSub}>Pre-post for a future date/location you're not at yet</Text>
+                    </View>
+                  </View>
+                  <View style={[styles.switchTrack, isOutpost && styles.switchTrackOn]}>
+                    <View style={[styles.switchThumb, isOutpost && styles.switchThumbOn]} />
+                  </View>
+                </TouchableOpacity>
+
+                {isOutpost && (
+                  <View style={styles.scheduleBox}>
+                    <Text style={styles.scheduleSubLabel}>Outpost address</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="e.g. 123 Main St, Austin, TX"
+                      placeholderTextColor={colors.textLight}
+                      value={outpostAddress}
+                      onChangeText={setOutpostAddress}
+                      maxLength={120}
+                    />
+
+                    <Text style={[styles.scheduleSubLabel, { marginTop: 14 }]}>When will you be there?</Text>
+                    <View style={styles.timeRow}>
+                      <View style={[styles.timeField, { flex: 1.4 }]}>
+                        <Text style={styles.timeFieldLabel}>Date</Text>
+                        <TextInput
+                          style={styles.timeInput}
+                          placeholder="MM/DD/YYYY"
+                          placeholderTextColor={colors.textLight}
+                          value={outpostDate}
+                          onChangeText={setOutpostDate}
+                          maxLength={10}
+                        />
+                      </View>
+                      <View style={styles.timeField}>
+                        <Text style={styles.timeFieldLabel}>Time</Text>
+                        <TextInput
+                          style={styles.timeInput}
+                          placeholder="09:00"
+                          placeholderTextColor={colors.textLight}
+                          value={outpostTime}
+                          onChangeText={setOutpostTime}
+                          maxLength={5}
+                        />
+                      </View>
+                    </View>
+
+                    <View style={styles.outpostFeeRow}>
+                      <Ionicons name="card-outline" size={15} color={colors.textSecondary} />
+                      <Text style={styles.outpostFeeText}>
+                        One-time posting fee: <Text style={{ fontWeight: '800', color: colors.text }}>${outpostFee.toFixed(2)}</Text>
+                      </Text>
+                    </View>
+                    <Text style={styles.scheduleHint}>
+                      Your listing stays hidden from buyers until the fee clears. Once you physically
+                      arrive at this address on or after the scheduled time, it automatically goes live —
+                      no extra step needed. Buyers can still message you to ask questions before then.
+                    </Text>
+                    {!isOutpostValid && (outpostAddress || outpostDate || outpostTime) && (
+                      <Text style={styles.scheduleError}>
+                        Enter a valid address and a date/time that's in the future.
+                      </Text>
+                    )}
+                  </View>
+                )}
+              </View>
+            )}
+
             {publishError ? (
               <View style={styles.errorBanner}>
                 <Ionicons name="alert-circle" size={18} color="#fff" />
@@ -538,7 +675,9 @@ export default function CreateListingScreen({ navigation }) {
               <Text style={styles.tipText}>
                 {isTickets
                   ? 'Ticket listings appear on buyers\' radars just like any other item.'
-                  : 'Your item appears on nearby buyers\' radars when you Go Live.'}
+                  : isOutpost
+                    ? 'After payment, this stays hidden until you arrive on-site — then it goes live automatically.'
+                    : 'Your item appears on nearby buyers\' radars when you Go Live.'}
               </Text>
             </View>
 
@@ -552,8 +691,10 @@ export default function CreateListingScreen({ navigation }) {
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
                 <>
-                  <Ionicons name={isTickets ? 'ticket-outline' : 'radio-outline'} size={18} color="#fff" />
-                  <Text style={styles.publishFullText}>{isTickets ? 'List Tickets' : 'Publish Listing'}</Text>
+                  <Ionicons name={isTickets ? 'ticket-outline' : isOutpost ? 'card-outline' : 'radio-outline'} size={18} color="#fff" />
+                  <Text style={styles.publishFullText}>
+                    {isTickets ? 'List Tickets' : isOutpost ? 'Pay & Post Outpost' : 'Publish Listing'}
+                  </Text>
                 </>
               )}
             </TouchableOpacity>
@@ -676,6 +817,39 @@ const styles = StyleSheet.create({
 
   scheduleHint: { fontSize: 11, color: colors.textLight, lineHeight: 16, marginTop: 12 },
   scheduleError: { fontSize: 11, color: colors.danger, lineHeight: 16, marginTop: 8, fontWeight: '500' },
+
+  // Outpost
+  outpostToggleRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: colors.cardBackground, borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: colors.border,
+  },
+  outpostToggleLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1, marginRight: 10 },
+  outpostIconWrap: {
+    width: 34, height: 34, borderRadius: 17,
+    backgroundColor: colors.primary + '15',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  outpostIconWrapActive: { backgroundColor: colors.primary },
+  outpostToggleTitle: { fontSize: 14, fontWeight: '700', color: colors.text },
+  outpostToggleSub: { fontSize: 11, color: colors.textLight, marginTop: 2, lineHeight: 15 },
+
+  switchTrack: {
+    width: 44, height: 26, borderRadius: 13,
+    backgroundColor: colors.border, padding: 3, justifyContent: 'center',
+  },
+  switchTrackOn: { backgroundColor: colors.primary },
+  switchThumb: {
+    width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.2, shadowRadius: 2,
+  },
+  switchThumbOn: { transform: [{ translateX: 18 }] },
+
+  outpostFeeRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: colors.border,
+  },
+  outpostFeeText: { fontSize: 13, color: colors.textSecondary },
 
   rowFields: { flexDirection: 'row', gap: 10 },
 

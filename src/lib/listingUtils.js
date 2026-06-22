@@ -1,3 +1,14 @@
+// ── Outpost ────────────────────────────────────────────────────
+
+/** "Sat, Jun 21 · 9:00 AM" style label for an Outpost's scheduled arrival. */
+export function formatOutpostSchedule(timestamp) {
+  if (!timestamp) return '';
+  const d = new Date(timestamp);
+  const datePart = d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+  const timePart = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  return `${datePart} · ${timePart}`;
+}
+
 // ── Proximity snap points & labels ──────────────────────────────
 
 export const PROXIMITY_SNAPS = [0.095, 0.189, 0.25, 0.5, 1, 2, 3, 5];

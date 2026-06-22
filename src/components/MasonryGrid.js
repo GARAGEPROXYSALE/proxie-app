@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
-import { getAgeBadge, recencyLabel, getAvailabilityStatus } from '../lib/listingUtils';
+import { getAgeBadge, recencyLabel, getAvailabilityStatus, formatOutpostSchedule } from '../lib/listingUtils';
 import colors from '../theme/colors';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -37,6 +37,7 @@ function MasonryCard({ item, onPress }) {
   const recency = recencyLabel(item.createdAt);
   const combinedViews = (item.impression_count || 0) + (item.tap_count || 0);
   const availability = getAvailabilityStatus(item);
+  const isPendingOutpost = item.is_outpost && !item.outpost_confirmed;
 
   // Promotion styles
   const isBoosted = item.is_boosted === true;
@@ -66,9 +67,22 @@ function MasonryCard({ item, onPress }) {
       <View style={[styles.imageWrap, { height: imgH }]}>
         <Image
           source={{ uri: item.photos?.[0] }}
-          style={styles.image}
+          style={[styles.image, isPendingOutpost && styles.imageOutpostFaded]}
           resizeMode="cover"
         />
+
+        {/* Outpost — not live yet */}
+        {isPendingOutpost && (
+          <View style={styles.outpostOverlay}>
+            <View style={styles.outpostBadge}>
+              <Ionicons name="flag" size={11} color="#fff" />
+              <Text style={styles.outpostBadgeText}>OUTPOST</Text>
+            </View>
+            <Text style={styles.outpostScheduleText} numberOfLines={1}>
+              {formatOutpostSchedule(item.outpost_scheduled_at)}
+            </Text>
+          </View>
+        )}
 
         {/* SOLD overlay */}
         {item.sold && (
@@ -93,8 +107,8 @@ function MasonryCard({ item, onPress }) {
           />
         </TouchableOpacity>
 
-        {/* Availability status badge */}
-        {!item.sold && !item.pickedUp && (
+        {/* Availability status badge — suppressed while the Outpost hasn't gone live */}
+        {!item.sold && !item.pickedUp && !isPendingOutpost && (
           <View style={[styles.availBadge, availability.state === 'available' && styles.availBadgeOn]}>
             {availability.state === 'available' && <View style={styles.availDot} />}
             <Text style={[styles.availBadgeText, availability.state === 'available' && styles.availBadgeTextOn]} numberOfLines={1}>
@@ -312,6 +326,37 @@ const styles = StyleSheet.create({
   },
   availBadgeTextOn: {
     color: '#fff',
+  },
+  imageOutpostFaded: {
+    opacity: 0.45,
+  },
+  outpostOverlay: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    right: 8,
+    gap: 4,
+  },
+  outpostBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+    backgroundColor: colors.textSecondary,
+    borderRadius: 8,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+  outpostBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#fff',
+    letterSpacing: 0.5,
+  },
+  outpostScheduleText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.text,
   },
 
   // Boosted pill

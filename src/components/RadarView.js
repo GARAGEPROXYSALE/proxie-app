@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Animated, StyleSheet, TouchableOpacity, Text } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { getAvailabilityStatus } from '../lib/listingUtils';
 import colors from '../theme/colors';
 
@@ -132,17 +133,24 @@ export default function RadarView({ items, maxMiles, onItemPress }) {
 
           {/* Item dots */}
           {itemsWithCoords.map((item) => {
-            const dotColor = categoryColors[item.category] || categoryColors.default;
-            const isAvailableNow = getAvailabilityStatus(item).state === 'available';
+            const isPendingOutpost = item.is_outpost && !item.outpost_confirmed;
+            const dotColor = isPendingOutpost ? colors.textLight : (categoryColors[item.category] || categoryColors.default);
+            const isAvailableNow = !isPendingOutpost && getAvailabilityStatus(item).state === 'available';
             return (
               <TouchableOpacity
                 key={item.id}
-                style={[styles.itemDot, { left: item.x - 10, top: item.y - 10, backgroundColor: dotColor }]}
+                style={[
+                  styles.itemDot,
+                  { left: item.x - 10, top: item.y - 10, backgroundColor: dotColor },
+                  isPendingOutpost && styles.itemDotOutpost,
+                ]}
                 onPress={() => onItemPress(item)}
                 activeOpacity={0.8}
               >
                 {isAvailableNow && <AvailablePulse color={dotColor} />}
-                <View style={[styles.itemDotInner, { borderColor: dotColor }]} />
+                {isPendingOutpost
+                  ? <Ionicons name="flag" size={9} color="#fff" />
+                  : <View style={[styles.itemDotInner, { borderColor: dotColor }]} />}
               </TouchableOpacity>
             );
           })}
@@ -210,6 +218,9 @@ staticRing: {
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 4,
+  },
+  itemDotOutpost: {
+    opacity: 0.6,
   },
   itemDotInner: {
     width: 8,

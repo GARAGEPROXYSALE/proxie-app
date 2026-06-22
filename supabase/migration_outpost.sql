@@ -86,6 +86,20 @@ returns table (
   order by c.created_at asc;
 $$;
 
+-- Batched count version — one query for every listing on the seller's
+-- My Garage screen instead of one RPC call per card.
+create or replace function public.get_interested_counts(p_listing_ids uuid[])
+returns table (
+  listing_id uuid,
+  interested_count bigint
+) language sql security definer set search_path = public as $$
+  select listing_id, count(distinct buyer_id)
+  from public.conversations
+  where listing_id = any(p_listing_ids)
+    and seller_id = auth.uid()
+  group by listing_id;
+$$;
+
 -- ── Trigger: notify savers when an Outpost confirms ─────────────
 -- Fires only on the false -> true transition. Calls the notify-outpost-confirmed
 -- Edge Function (deploy with --no-verify-jwt so this server-to-server call

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
   SafeAreaView, Image, Dimensions,
@@ -6,6 +6,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
+import { fetchInterestedCounts } from '../lib/db';
+import { formatOutpostSchedule } from '../lib/listingUtils';
+import InterestedBuyersSheet from '../components/InterestedBuyersSheet';
 import colors from '../theme/colors';
 
 const { width } = Dimensions.get('window');
@@ -14,16 +17,30 @@ const CARD_WIDTH = (width - 32 - CARD_GAP) / 2;
 
 const TABS = ['Active', 'Sold'];
 
-function ListingGridCard({ item, onPress }) {
+function ListingGridCard({ item, onPress, interestedCount, onShowInterested }) {
   const isSold = item.sold || item.pickedUp;
+  const isPendingOutpost = item.is_outpost && !item.outpost_confirmed;
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.88}>
       <View style={styles.imageWrap}>
         {item.photos?.[0] ? (
-          <Image source={{ uri: item.photos[0] }} style={styles.image} resizeMode="cover" />
+          <Image source={{ uri: item.photos[0] }} style={[styles.image, isPendingOutpost && styles.imageFaded]} resizeMode="cover" />
         ) : (
           <View style={[styles.image, styles.imagePlaceholder]}>
             <Ionicons name="image-outline" size={32} color={colors.textLight} />
+          </View>
+        )}
+        {isPendingOutpost && (
+          <View style={styles.outpostOverlay}>
+            <View style={styles.outpostBadge}>
+              <Ionicons name="flag" size={10} color="#fff" />
+              <Text style={styles.outpostBadgeText}>
+                {item.outpost_fee_paid ? 'OUTPOST' : 'UNPAID'}
+              </Text>
+            </View>
+            <Text style={styles.outpostScheduleText} numberOfLines={1}>
+              {formatOutpostSchedule(item.outpost_scheduled_at)}
+            </Text>
           </View>
         )}
         {isSold && (
@@ -41,6 +58,16 @@ function ListingGridCard({ item, onPress }) {
         {item.postedAt ? (
           <Text style={styles.cardAge}>{item.postedAt}</Text>
         ) : null}
+        {interestedCount > 0 && (
+          <TouchableOpacity
+            style={styles.interestedBadge}
+            onPress={(e) => { e.stopPropagation?.(); onShowInterested(); }}
+            activeOpacity={0.75}
+          >
+            <Ionicons name="people" size={12} color={colors.primary} />
+            <Text style={styles.interestedBadgeText}>{interestedCount} interested</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -50,6 +77,8 @@ export default function MyListingsScreen({ navigation }) {
   const { listings, user, openMarkSoldModal } = useApp();
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState('Active');
+  const [interestedCounts, setInterestedCounts] = useState({});
+  const [interestedSheetListing, setInterestedSheetListing] = useState(null);
 
   const myListings = listings.filter(
     (l) => l.seller?.id === user?.id || l.seller?.id === 'me'
@@ -57,6 +86,12 @@ export default function MyListingsScreen({ navigation }) {
   const activeListings = myListings.filter((l) => !l.sold && !l.pickedUp && l.status !== 'expired');
   const soldListings = myListings.filter((l) => l.sold || l.pickedUp);
   const displayed = tab === 'Active' ? activeListings : soldListings;
+
+  useEffect(() => {
+    const ids = myListings.filter((l) => !String(l.id).startsWith('temp-')).map((l) => l.id);
+    if (ids.length === 0) return;
+    fetchInterestedCounts(ids).then(setInterestedCounts).catch(() => {});
+  }, [myListings.length]);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -126,8 +161,17 @@ export default function MyListingsScreen({ navigation }) {
           <ListingGridCard
             item={item}
             onPress={() => navigation.navigate('ItemDetail', { item })}
+            interestedCount={interestedCounts[item.id] || 0}
+            onShowInterested={() => setInterestedSheetListing(item)}
           />
         )}
+      />
+
+      <InterestedBuyersSheet
+        visible={!!interestedSheetListing}
+        onClose={() => setInterestedSheetListing(null)}
+        listing={interestedSheetListing}
+        navigation={navigation}
       />
     </SafeAreaView>
   );
@@ -213,6 +257,24 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 13, fontWeight: '600', color: colors.text, lineHeight: 18 },
   cardMeta: { fontSize: 11, color: colors.primary, fontWeight: '600', marginTop: 3 },
   cardAge: { fontSize: 10, color: colors.textLight, marginTop: 1 },
+
+  // Outpost
+  imageFaded: { opacity: 0.45 },
+  outpostOverlay: { position: 'absolute', top: 8, left: 8, right: 8, gap: 4 },
+  outpostBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start',
+    backgroundColor: colors.textSecondary, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3,
+  },
+  outpostBadgeText: { fontSize: 9, fontWeight: '800', color: '#fff', letterSpacing: 0.5 },
+  outpostScheduleText: { fontSize: 10, fontWeight: '700', color: colors.text },
+
+  // Interested buyers
+  interestedBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    alignSelf: 'flex-start', backgroundColor: colors.primary + '15',
+    borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3, marginTop: 6,
+  },
+  interestedBadgeText: { fontSize: 10, fontWeight: '700', color: colors.primary },
 
   empty: { alignItems: 'center', paddingTop: 80, paddingHorizontal: 32 },
   emptyTitle: { fontSize: 17, fontWeight: '700', color: colors.text, marginTop: 16 },

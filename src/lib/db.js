@@ -152,6 +152,17 @@ export async function fetchInterestedBuyers(listingId) {
   }));
 }
 
+// One call for every listing on the seller's My Garage screen instead of
+// one RPC per card. Returns { [listingId]: count }.
+export async function fetchInterestedCounts(listingIds) {
+  if (!listingIds?.length) return {};
+  const { data, error } = await supabase.rpc('get_interested_counts', { p_listing_ids: listingIds });
+  if (error) throw error;
+  const map = {};
+  (data || []).forEach((row) => { map[row.listing_id] = Number(row.interested_count); });
+  return map;
+}
+
 // Toggling save on an Outpost listing both bookmarks it and subscribes the
 // buyer to the "outpost confirmed" push notification.
 export async function setListingSaved(userId, listingId, saved) {

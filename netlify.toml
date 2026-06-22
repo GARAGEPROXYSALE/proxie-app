@@ -22,6 +22,16 @@
   status = 200
 
 [[redirects]]
+  from = "/outpost-success"
+  to = "/outpost-success.html"
+  status = 200
+
+[[redirects]]
+  from = "/outpost-cancel"
+  to = "/outpost-cancel.html"
+  status = 200
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200

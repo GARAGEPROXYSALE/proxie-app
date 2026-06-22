@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
-import { getAvailabilityStatus } from '../lib/listingUtils';
+import { getAvailabilityStatus, formatOutpostSchedule } from '../lib/listingUtils';
 import colors from '../theme/colors';
 
 const { width } = Dimensions.get('window');
@@ -134,23 +134,38 @@ export default function ItemDetailScreen({ navigation, route }) {
             )}
           </View>
 
-          {/* Availability status */}
-          {(() => {
-            const availability = getAvailabilityStatus(liveItem);
-            const isAvailable = availability.state === 'available';
-            return (
-              <View style={[styles.availabilityChip, isAvailable && styles.availabilityChipOn]}>
-                <Ionicons
-                  name={isAvailable ? 'checkmark-circle' : 'time-outline'}
-                  size={15}
-                  color={isAvailable ? colors.success : colors.textSecondary}
-                />
-                <Text style={[styles.availabilityText, isAvailable && styles.availabilityTextOn]}>
-                  {availability.label}
-                </Text>
+          {/* Outpost status — takes over from the normal availability chip until confirmed */}
+          {liveItem.is_outpost && !liveItem.outpost_confirmed ? (
+            <View style={styles.outpostChip}>
+              <View style={styles.outpostChipBadge}>
+                <Ionicons name="flag" size={12} color="#fff" />
+                <Text style={styles.outpostChipBadgeText}>OUTPOST</Text>
               </View>
-            );
-          })()}
+              <Text style={styles.outpostChipText}>
+                Not live yet — goes live {formatOutpostSchedule(liveItem.outpost_scheduled_at)}
+              </Text>
+              <Text style={styles.outpostChipSub}>
+                You can message the seller now to ask questions before they arrive.
+              </Text>
+            </View>
+          ) : (
+            (() => {
+              const availability = getAvailabilityStatus(liveItem);
+              const isAvailable = availability.state === 'available';
+              return (
+                <View style={[styles.availabilityChip, isAvailable && styles.availabilityChipOn]}>
+                  <Ionicons
+                    name={isAvailable ? 'checkmark-circle' : 'time-outline'}
+                    size={15}
+                    color={isAvailable ? colors.success : colors.textSecondary}
+                  />
+                  <Text style={[styles.availabilityText, isAvailable && styles.availabilityTextOn]}>
+                    {availability.label}
+                  </Text>
+                </View>
+              );
+            })()
+          )}
 
           {/* Description */}
           <View style={styles.section}>
@@ -372,6 +387,46 @@ const styles = StyleSheet.create({
   },
   availabilityTextOn: {
     color: colors.success,
+  },
+
+  outpostChip: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.cardBackground,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 4,
+    maxWidth: '100%',
+  },
+  outpostChipBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+    backgroundColor: colors.textSecondary,
+    borderRadius: 8,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    marginBottom: 2,
+  },
+  outpostChipBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#fff',
+    letterSpacing: 0.5,
+  },
+  outpostChipText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  outpostChipSub: {
+    fontSize: 12,
+    color: colors.textLight,
+    lineHeight: 17,
   },
 
   section: { marginBottom: 20 },
