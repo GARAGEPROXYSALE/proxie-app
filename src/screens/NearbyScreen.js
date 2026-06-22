@@ -143,6 +143,24 @@ export default function NearbyScreen({ navigation }) {
           />
         }
       >
+        {/* Location off notice card */}
+        {locationDenied && !userLocation && (
+          <TouchableOpacity
+            style={styles.locationCard}
+            onPress={() => { Linking.openSettings(); setLocationDenied(false); }}
+            activeOpacity={0.85}
+          >
+            <View style={styles.locationCardIconWrap}>
+              <Ionicons name="location-outline" size={17} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.locationCardTitle}>Turn on location</Text>
+              <Text style={styles.locationCardSub}>See real distances to items near you</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.textLight} />
+          </TouchableOpacity>
+        )}
+
         {/* Stale location notice pill */}
         {locationStaleNotice && (
           <View style={styles.staleNoticePill}>
@@ -279,22 +297,6 @@ export default function NearbyScreen({ navigation }) {
 
       </ScrollView>
 
-      {/* Location denied banner */}
-      {locationDenied && !userLocation && (
-        <TouchableOpacity
-          style={[styles.locationBanner, { top: filtersTop + FILTERS_HEIGHT }]}
-          onPress={() => { Linking.openSettings(); setLocationDenied(false); }}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="location-outline" size={16} color={colors.warning} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.locationBannerTitle}>Location is off — listings won't show distances</Text>
-            <Text style={styles.locationBannerSub}>Proxie is distance-based. Tap to enable GPS.</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={14} color={colors.warning} />
-        </TouchableOpacity>
-      )}
-
       {/* ── Filter bar — floats above the scroll content ── */}
       <View
         style={[styles.filtersWrapper, { top: filtersTop }]}
@@ -391,39 +393,40 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 
-  // ── Location banner ────────────────────────────────────
-  locationBanner: {
-    position: 'absolute',
-    left: 16,
-    right: 16,
+  // ── Location off card ──────────────────────────────────
+  locationCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    backgroundColor: colors.warning + '18',
-    borderWidth: 1,
-    borderColor: colors.warning + '40',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    zIndex: 20,
+    gap: 12,
+    backgroundColor: colors.cardBackground,
+    borderRadius: 16,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  locationBannerText: {
-    flex: 1,
-    fontSize: 12,
-    color: colors.warning,
-    fontWeight: '500',
+  locationCardIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.primary + '15',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  locationBannerTitle: {
-    fontSize: 12,
-    color: colors.warning,
+  locationCardTitle: {
+    fontSize: 14,
     fontWeight: '700',
-    lineHeight: 16,
+    color: colors.text,
   },
-  locationBannerSub: {
-    fontSize: 11,
-    color: colors.warning,
-    opacity: 0.8,
-    marginTop: 1,
+  locationCardSub: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
 
   // ── Filter bar (absolutely positioned, always on top) ──
