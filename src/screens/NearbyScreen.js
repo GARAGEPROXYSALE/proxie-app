@@ -45,6 +45,13 @@ export default function NearbyScreen({ navigation }) {
     return () => clearTimeout(timer);
   }, [userLocation]);
 
+  // "Active now" depends on knowing where the user is — collapse the filter
+  // (and clear it) the moment location isn't available, instead of leaving
+  // it silently applied with no visible toggle to turn it off.
+  useEffect(() => {
+    if (!userLocation && activeNowOnly) setActiveNowOnly(false);
+  }, [userLocation]);
+
   // Cleanup stale notice timer on unmount
   useEffect(() => {
     return () => {
@@ -176,7 +183,7 @@ export default function NearbyScreen({ navigation }) {
               <View style={styles.liveDot} />
               <Text style={styles.liveText}>Live</Text>
             </View>
-            {viewMode === 'radar' && (
+            {viewMode === 'radar' && userLocation && (
               <TouchableOpacity
                 style={[styles.activeNowToggle, activeNowOnly && styles.activeNowToggleOn]}
                 onPress={() => setActiveNowOnly((v) => !v)}
