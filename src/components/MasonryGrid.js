@@ -117,10 +117,10 @@ function MasonryCard({ item, onPress }) {
           </View>
         )}
 
-        {/* Boosted "Nearby+" label — top-right */}
+        {/* Boosted "+" label — top-right */}
         {isBoosted && !isPromoted && (
           <View style={styles.boostedPill}>
-            <Text style={styles.boostedPillText}>Nearby+</Text>
+            <Text style={styles.boostedPillText}>+</Text>
           </View>
         )}
 
