@@ -102,6 +102,17 @@ export async function updateListingAvailability(listingId, { availabilityType, s
   if (error) throw error;
 }
 
+// Backfills location on a listing that was published before location was
+// required (or whose GPS capture failed silently at the time) — without
+// this, the listing can never be distance-filtered or placed on the map.
+export async function updateListingLocation(listingId, { latitude, longitude }) {
+  const { error } = await supabase
+    .from('listings')
+    .update({ latitude, longitude })
+    .eq('id', listingId);
+  if (error) throw error;
+}
+
 export async function repostListingRPC(listingId) {
   const { data, error } = await supabase.rpc('repost_listing', { original_id: listingId });
   if (error) throw error;

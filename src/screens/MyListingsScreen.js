@@ -17,9 +17,12 @@ const CARD_WIDTH = (width - 32 - CARD_GAP) / 2;
 
 const TABS = ['Active', 'Sold'];
 
-function ListingGridCard({ item, onPress, interestedCount, onShowInterested }) {
+function ListingGridCard({ item, onPress, interestedCount, onShowInterested, onAddLocation, fixingLocation }) {
   const isSold = item.sold || item.pickedUp;
   const isPendingOutpost = item.is_outpost && !item.outpost_confirmed;
+  // Outpost listings get their coordinates from the geocoded address instead
+  // of device GPS, so a missing lat/long there isn't this kind of problem.
+  const missingLocation = !item.is_outpost && (item.latitude == null || item.longitude == null);
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.88}>
       <View style={styles.imageWrap}>
@@ -68,17 +71,44 @@ function ListingGridCard({ item, onPress, interestedCount, onShowInterested }) {
             <Text style={styles.interestedBadgeText}>{interestedCount} interested</Text>
           </TouchableOpacity>
         )}
+        {missingLocation && (
+          <TouchableOpacity
+            style={styles.missingLocationBadge}
+            onPress={(e) => { e.stopPropagation?.(); onAddLocation(item); }}
+            activeOpacity={0.75}
+            disabled={fixingLocation}
+          >
+            <Ionicons name="location-outline" size={12} color={colors.danger} />
+            <Text style={styles.missingLocationText}>
+              {fixingLocation ? 'Setting location…' : 'No location — tap to fix'}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
     </TouchableOpacity>
   );
 }
 
 export default function MyListingsScreen({ navigation }) {
-  const { listings, user, openMarkSoldModal } = useApp();
+  const { listings, user, openMarkSoldModal, addListingLocation } = useApp();
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState('Active');
   const [interestedCounts, setInterestedCounts] = useState({});
   const [interestedSheetListing, setInterestedSheetListing] = useState(null);
+  const [fixingLocationId, setFixingLocationId] = useState(null);
+  const [locationError, setLocationError] = useState('');
+
+  const handleAddLocation = async (item) => {
+    setLocationError('');
+    setFixingLocationId(item.id);
+    try {
+      await addListingLocation(item.id);
+    } catch (e) {
+      setLocationError(`Couldn't set location for "${item.title}" — make sure location access is allowed, then try again.`);
+    } finally {
+      setFixingLocationId(null);
+    }
+  };
 
   const myListings = listings.filter(
     (l) => l.seller?.id === user?.id || l.seller?.id === 'me'
@@ -128,6 +158,13 @@ export default function MyListingsScreen({ navigation }) {
         ))}
       </View>
 
+      {locationError ? (
+        <View style={styles.locationErrorBanner}>
+          <Ionicons name="alert-circle-outline" size={16} color={colors.danger} />
+          <Text style={styles.locationErrorText}>{locationError}</Text>
+        </View>
+      ) : null}
+
       {/* Grid */}
       <FlatList
         data={displayed}
@@ -163,6 +200,8 @@ export default function MyListingsScreen({ navigation }) {
             onPress={() => navigation.navigate('ItemDetail', { item })}
             interestedCount={interestedCounts[item.id] || 0}
             onShowInterested={() => setInterestedSheetListing(item)}
+            onAddLocation={handleAddLocation}
+            fixingLocation={fixingLocationId === item.id}
           />
         )}
       />
@@ -275,6 +314,21 @@ const styles = StyleSheet.create({
     borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3, marginTop: 6,
   },
   interestedBadgeText: { fontSize: 10, fontWeight: '700', color: colors.primary },
+
+  // Missing location
+  missingLocationBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    alignSelf: 'flex-start', backgroundColor: colors.danger + '15',
+    borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3, marginTop: 6,
+  },
+  missingLocationText: { fontSize: 10, fontWeight: '700', color: colors.danger },
+  locationErrorBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: colors.danger + '12', borderWidth: 1, borderColor: colors.danger + '30',
+    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10,
+    marginHorizontal: 16, marginBottom: 12,
+  },
+  locationErrorText: { flex: 1, fontSize: 12, fontWeight: '500', color: colors.danger, lineHeight: 17 },
 
   empty: { alignItems: 'center', paddingTop: 80, paddingHorizontal: 32 },
   emptyTitle: { fontSize: 17, fontWeight: '700', color: colors.text, marginTop: 16 },

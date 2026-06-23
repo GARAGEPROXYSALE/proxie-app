@@ -8,7 +8,7 @@ import {
   startConversationDB, sendMessageDB, markMessagesRead, subscribeToMessages,
   fetchWishlist, insertWishlistEntry, deleteWishlistEntry,
   insertListing, updateListingStatus, repostListingRPC, incrementViewsRPC,
-  updateListingAvailability, setConversationTimer, clearConversationTimer,
+  updateListingAvailability, updateListingLocation, setConversationTimer, clearConversationTimer,
   createOutpostCheckoutUrl, fetchInterestedBuyers, setListingSaved, fetchUnconfirmedOutposts,
 } from '../lib/db';
 import { getUserLocation, distanceMiles, bearingAngle } from '../lib/location';
@@ -484,6 +484,20 @@ export function AppProvider({ children }) {
     if (!String(listingId).startsWith('temp-')) {
       updateListingAvailability(listingId, { availabilityType, schedule }).catch(() => {});
     }
+  }, []);
+
+  // Lets a seller backfill location on their own listing that was published
+  // without it (location was denied, or failed silently, at creation time).
+  // Captures the seller's CURRENT device location — they need to be at/near
+  // the actual sale spot when they do this for the distance to mean anything.
+  const addListingLocation = useCallback(async (listingId) => {
+    const loc = await getUserLocation();
+    if (!loc) throw new Error('Location permission is required to set this.');
+    setListings((prev) =>
+      prev.map((l) => (l.id === listingId ? { ...l, latitude: loc.latitude, longitude: loc.longitude } : l))
+    );
+    await updateListingLocation(listingId, loc);
+    return loc;
   }, []);
 
   const addListing = useCallback(async (listing) => {
@@ -964,6 +978,7 @@ export function AppProvider({ children }) {
         pickUpListing,
         repostListing,
         setListingAvailability,
+        addListingLocation,
         // Outpost
         payOutpostFee,
         beginOutpostMonitoring,

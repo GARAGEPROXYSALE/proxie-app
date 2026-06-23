@@ -29,6 +29,7 @@ export default function CreateListingScreen({ navigation }) {
   const [price, setPrice] = useState('');
   const [photos, setPhotos] = useState([]);
   const [gpsCoords, setGpsCoords] = useState(null);
+  const [gpsStatus, setGpsStatus] = useState('loading'); // 'loading' | 'ok' | 'denied'
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState('');
 
@@ -83,7 +84,10 @@ export default function CreateListingScreen({ navigation }) {
     outpostScheduledDate.getTime() > Date.now()
   );
 
-  const isValid = photos.length > 0 && isScheduleValid && isOutpostValid && (
+  // Outpost listings supply their own geocoded address at publish time, so
+  // they don't need device GPS — every other listing does, otherwise it can
+  // never be placed on the map or distance-filtered for buyers.
+  const isValid = photos.length > 0 && isScheduleValid && isOutpostValid && (isOutpost || !!gpsCoords) && (
     isTickets
       ? eventName.trim() && price.trim() && eventDate.trim() && venue.trim() && numTickets
       : title.trim() && price.trim() && description.trim() && category
@@ -93,8 +97,22 @@ export default function CreateListingScreen({ navigation }) {
     setScheduleDays((prev) => prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort());
   };
 
+  const requestLocation = () => {
+    setGpsStatus('loading');
+    getUserLocation()
+      .then((loc) => {
+        if (loc) {
+          setGpsCoords(loc);
+          setGpsStatus('ok');
+        } else {
+          setGpsStatus('denied');
+        }
+      })
+      .catch(() => setGpsStatus('denied'));
+  };
+
   useEffect(() => {
-    getUserLocation().then((loc) => setGpsCoords(loc)).catch(() => {});
+    requestLocation();
     fetchOutpostFee().then(setOutpostFee).catch(() => {});
   }, []);
 
@@ -163,6 +181,10 @@ export default function CreateListingScreen({ navigation }) {
     }
 
     if (photos.length === 0) { setPublishError('At least one photo is required.'); return; }
+    if (!isOutpost && !gpsCoords) {
+      setPublishError('Location is required so buyers can see how far away this is. Enable location and try again.');
+      return;
+    }
     const errors = validateListingPayload({ title: cleanTitle, price: cleanPrice, description: cleanDesc, category });
     if (errors.length > 0) { setPublishError(errors[0]); return; }
     if (isOutpost && !isOutpostValid) {
@@ -287,11 +309,23 @@ export default function CreateListingScreen({ navigation }) {
           </View>
 
           <View style={styles.form}>
-            {/* GPS indicator */}
-            <View style={styles.gpsRow}>
-              <View style={[styles.gpsDot, { backgroundColor: gpsCoords ? colors.success : colors.textLight }]} />
-              <Text style={styles.gpsText}>{gpsCoords ? 'Location captured — buyers nearby will see this' : 'Getting location…'}</Text>
-            </View>
+            {/* GPS indicator — required for every non-Outpost listing, since
+                a listing with no coordinates can never be placed on the map
+                or distance-filtered for buyers. */}
+            {!isOutpost && (
+              gpsStatus === 'denied' ? (
+                <TouchableOpacity style={styles.gpsRowDenied} onPress={requestLocation} activeOpacity={0.8}>
+                  <View style={[styles.gpsDot, { backgroundColor: colors.danger }]} />
+                  <Text style={styles.gpsTextDenied}>Location is required to publish — tap to enable</Text>
+                  <Ionicons name="refresh" size={14} color={colors.danger} />
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.gpsRow}>
+                  <View style={[styles.gpsDot, { backgroundColor: gpsCoords ? colors.success : colors.textLight }]} />
+                  <Text style={styles.gpsText}>{gpsCoords ? 'Location captured — buyers nearby will see this' : 'Getting location…'}</Text>
+                </View>
+              )
+            )}
 
             {/* Category */}
             <View style={styles.field}>
@@ -742,6 +776,12 @@ const styles = StyleSheet.create({
   gpsRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16 },
   gpsDot: { width: 8, height: 8, borderRadius: 4 },
   gpsText: { fontSize: 12, color: colors.textSecondary },
+  gpsRowDenied: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: colors.danger + '12', borderWidth: 1, borderColor: colors.danger + '30',
+    borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 16,
+  },
+  gpsTextDenied: { flex: 1, fontSize: 12, fontWeight: '600', color: colors.danger },
   field: { marginBottom: 20 },
   label: { fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 8 },
   optional: { fontWeight: '400', color: colors.textLight, fontSize: 12 },
