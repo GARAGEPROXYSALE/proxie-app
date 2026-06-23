@@ -8,7 +8,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
-import { getUserLocation } from '../lib/location';
+import { getUserLocation, reverseGeocode } from '../lib/location';
 import { uploadListingPhoto, fetchOutpostFee } from '../lib/db';
 import { supabase } from '../lib/supabase';
 import { sanitizeText, sanitizePrice, validateListingPayload } from '../lib/sanitize';
@@ -30,6 +30,11 @@ export default function CreateListingScreen({ navigation }) {
   const [photos, setPhotos] = useState([]);
   const [gpsCoords, setGpsCoords] = useState(null);
   const [gpsStatus, setGpsStatus] = useState('loading'); // 'loading' | 'ok' | 'denied'
+  const [gpsAddress, setGpsAddress] = useState(null); // reverse-geocoded, or null (e.g. on web)
+  const [locationConfirmed, setLocationConfirmed] = useState(false);
+  const [manualAddressMode, setManualAddressMode] = useState(false);
+  const [manualAddress, setManualAddress] = useState('');
+  const [manualAddressError, setManualAddressError] = useState('');
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState('');
 
@@ -85,9 +90,10 @@ export default function CreateListingScreen({ navigation }) {
   );
 
   // Outpost listings supply their own geocoded address at publish time, so
-  // they don't need device GPS — every other listing does, otherwise it can
-  // never be placed on the map or distance-filtered for buyers.
-  const isValid = photos.length > 0 && isScheduleValid && isOutpostValid && (isOutpost || !!gpsCoords) && (
+  // they don't need device GPS — every other listing does, and a seller
+  // must explicitly confirm the detected location before it can be used,
+  // not just have GPS silently succeed in the background.
+  const isValid = photos.length > 0 && isScheduleValid && isOutpostValid && (isOutpost || locationConfirmed) && (
     isTickets
       ? eventName.trim() && price.trim() && eventDate.trim() && venue.trim() && numTickets
       : title.trim() && price.trim() && description.trim() && category
@@ -99,16 +105,34 @@ export default function CreateListingScreen({ navigation }) {
 
   const requestLocation = () => {
     setGpsStatus('loading');
+    setLocationConfirmed(false);
+    setGpsAddress(null);
     getUserLocation()
-      .then((loc) => {
+      .then(async (loc) => {
         if (loc) {
           setGpsCoords(loc);
           setGpsStatus('ok');
+          const address = await reverseGeocode(loc.latitude, loc.longitude);
+          setGpsAddress(address);
         } else {
           setGpsStatus('denied');
         }
       })
       .catch(() => setGpsStatus('denied'));
+  };
+
+  const handleManualAddressConfirm = async () => {
+    setManualAddressError('');
+    const geocoded = await Location.geocodeAsync(manualAddress.trim()).catch(() => []);
+    if (!geocoded?.[0]) {
+      setManualAddressError("Couldn't find that address. Try adding a city or zip code.");
+      return;
+    }
+    setGpsCoords({ latitude: geocoded[0].latitude, longitude: geocoded[0].longitude });
+    setGpsAddress(manualAddress.trim());
+    setGpsStatus('ok');
+    setLocationConfirmed(true);
+    setManualAddressMode(false);
   };
 
   useEffect(() => {
@@ -181,8 +205,8 @@ export default function CreateListingScreen({ navigation }) {
     }
 
     if (photos.length === 0) { setPublishError('At least one photo is required.'); return; }
-    if (!isOutpost && !gpsCoords) {
-      setPublishError('Location is required so buyers can see how far away this is. Enable location and try again.');
+    if (!isOutpost && !locationConfirmed) {
+      setPublishError('Please confirm your location before publishing.');
       return;
     }
     const errors = validateListingPayload({ title: cleanTitle, price: cleanPrice, description: cleanDesc, category });
@@ -309,22 +333,82 @@ export default function CreateListingScreen({ navigation }) {
           </View>
 
           <View style={styles.form}>
-            {/* GPS indicator — required for every non-Outpost listing, since
-                a listing with no coordinates can never be placed on the map
-                or distance-filtered for buyers. */}
+            {/* Location — required for every non-Outpost listing, and a
+                seller must explicitly confirm it before it can be used. No
+                listing goes live on a silently-captured, unverified GPS fix. */}
             {!isOutpost && (
-              gpsStatus === 'denied' ? (
-                <TouchableOpacity style={styles.gpsRowDenied} onPress={requestLocation} activeOpacity={0.8}>
-                  <View style={[styles.gpsDot, { backgroundColor: colors.danger }]} />
-                  <Text style={styles.gpsTextDenied}>Location is required to publish — tap to enable</Text>
-                  <Ionicons name="refresh" size={14} color={colors.danger} />
-                </TouchableOpacity>
-              ) : (
-                <View style={styles.gpsRow}>
-                  <View style={[styles.gpsDot, { backgroundColor: gpsCoords ? colors.success : colors.textLight }]} />
-                  <Text style={styles.gpsText}>{gpsCoords ? 'Location captured — buyers nearby will see this' : 'Getting location…'}</Text>
-                </View>
-              )
+              <View style={styles.locationSection}>
+                {gpsStatus === 'denied' ? (
+                  <TouchableOpacity style={styles.gpsRowDenied} onPress={requestLocation} activeOpacity={0.8}>
+                    <View style={[styles.gpsDot, { backgroundColor: colors.danger }]} />
+                    <Text style={styles.gpsTextDenied}>Location is required to publish — tap to enable</Text>
+                    <Ionicons name="refresh" size={14} color={colors.danger} />
+                  </TouchableOpacity>
+                ) : gpsStatus === 'loading' ? (
+                  <View style={styles.gpsRow}>
+                    <View style={[styles.gpsDot, { backgroundColor: colors.textLight }]} />
+                    <Text style={styles.gpsText}>Getting location…</Text>
+                  </View>
+                ) : locationConfirmed ? (
+                  <View style={styles.locationConfirmedRow}>
+                    <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+                    <Text style={styles.locationConfirmedText} numberOfLines={2}>
+                      {gpsAddress || `${gpsCoords.latitude.toFixed(4)}, ${gpsCoords.longitude.toFixed(4)}`}
+                    </Text>
+                    <TouchableOpacity onPress={() => setLocationConfirmed(false)}>
+                      <Text style={styles.locationChangeLink}>Change</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : manualAddressMode ? (
+                  <View style={styles.locationConfirmBox}>
+                    <Text style={styles.locationConfirmTitle}>Enter your address</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="e.g. 123 Main St, Queens, NY"
+                      placeholderTextColor={colors.textLight}
+                      value={manualAddress}
+                      onChangeText={setManualAddress}
+                      maxLength={120}
+                    />
+                    {manualAddressError ? (
+                      <Text style={styles.scheduleError}>{manualAddressError}</Text>
+                    ) : null}
+                    <View style={styles.locationConfirmActions}>
+                      <TouchableOpacity style={styles.locationConfirmBtn} onPress={handleManualAddressConfirm} activeOpacity={0.85}>
+                        <Text style={styles.locationConfirmBtnText}>Use this address</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.locationRetryBtn} onPress={() => setManualAddressMode(false)} activeOpacity={0.7}>
+                        <Text style={styles.locationRetryBtnText}>Cancel</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : (
+                  <View style={styles.locationConfirmBox}>
+                    <Text style={styles.locationConfirmTitle}>Is this your location?</Text>
+                    <View style={styles.locationConfirmAddressRow}>
+                      <Ionicons name="location" size={16} color={colors.primary} />
+                      <Text style={styles.locationConfirmAddress} numberOfLines={2}>
+                        {gpsAddress || `Approx. ${gpsCoords.latitude.toFixed(4)}, ${gpsCoords.longitude.toFixed(4)}`}
+                      </Text>
+                    </View>
+                    <Text style={styles.locationConfirmHint}>
+                      Buyers use this to see how far away your listing is — make sure it's right.
+                    </Text>
+                    <View style={styles.locationConfirmActions}>
+                      <TouchableOpacity style={styles.locationConfirmBtn} onPress={() => setLocationConfirmed(true)} activeOpacity={0.85}>
+                        <Ionicons name="checkmark" size={16} color="#fff" />
+                        <Text style={styles.locationConfirmBtnText}>Yes, that's right</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.locationRetryBtn} onPress={requestLocation} activeOpacity={0.7}>
+                        <Text style={styles.locationRetryBtnText}>Retry</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <TouchableOpacity onPress={() => setManualAddressMode(true)}>
+                      <Text style={styles.locationManualLink}>That's not right — enter address manually</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
             )}
 
             {/* Category */}
@@ -782,6 +866,40 @@ const styles = StyleSheet.create({
     borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 16,
   },
   gpsTextDenied: { flex: 1, fontSize: 12, fontWeight: '600', color: colors.danger },
+
+  locationSection: { marginBottom: 16 },
+  locationConfirmedRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: colors.success + '12', borderWidth: 1, borderColor: colors.success + '30',
+    borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10,
+  },
+  locationConfirmedText: { flex: 1, fontSize: 12, fontWeight: '600', color: colors.text },
+  locationChangeLink: { fontSize: 12, fontWeight: '700', color: colors.primary },
+
+  locationConfirmBox: {
+    backgroundColor: colors.cardBackground, borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: colors.border,
+  },
+  locationConfirmTitle: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 10 },
+  locationConfirmAddressRow: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 8,
+    backgroundColor: colors.primary + '10', borderRadius: 10, padding: 10, marginBottom: 8,
+  },
+  locationConfirmAddress: { flex: 1, fontSize: 13, fontWeight: '600', color: colors.text, lineHeight: 18 },
+  locationConfirmHint: { fontSize: 11, color: colors.textLight, lineHeight: 16, marginBottom: 12 },
+  locationConfirmActions: { flexDirection: 'row', gap: 10, marginBottom: 4 },
+  locationConfirmBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    backgroundColor: colors.primary, borderRadius: 12, paddingVertical: 12,
+  },
+  locationConfirmBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+  locationRetryBtn: {
+    paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12,
+    borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center',
+  },
+  locationRetryBtnText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
+  locationManualLink: { fontSize: 12, color: colors.textLight, textAlign: 'center', marginTop: 10, textDecorationLine: 'underline' },
+
   field: { marginBottom: 20 },
   label: { fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 8 },
   optional: { fontWeight: '400', color: colors.textLight, fontSize: 12 },

@@ -186,9 +186,10 @@ export default function ChatScreen({ navigation, route }) {
     setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
   };
 
+  // Drops the quick reply into the composer instead of sending it straight
+  // away — lets the buyer tweak it (add/remove words) before they hit Send.
   const handleQuick = (q) => {
-    sendMessage(currentThread.id, q);
-    setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
+    setText(q);
   };
 
   // ── Message renderers ────────────────────────────────────────

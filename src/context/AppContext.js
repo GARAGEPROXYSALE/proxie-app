@@ -888,9 +888,38 @@ export function AppProvider({ children }) {
     }
   }, [user.id, user.name]);
 
+  // Always loads message history before handing the thread back — relying
+  // solely on ChatScreen's own mount-time fetch left a window where
+  // "Message Host" on a listing you'd already messaged about handed back a
+  // thread that looked brand new (messages: []) until that fetch resolved,
+  // which read as "my previous conversation is gone."
+  const hydrateThreadMessages = useCallback(async (threadLocalId, convoId) => {
+    if (!convoId) return null;
+    try {
+      const dbMessages = await fetchMessages(convoId);
+      let hydrated = null;
+      setMessages((prev) => {
+        const updated = prev.map((t) => {
+          if (t.id !== threadLocalId) return t;
+          hydrated = { ...t, messages: dbMessages };
+          return hydrated;
+        });
+        messagesRef.current = updated;
+        return updated;
+      });
+      return hydrated;
+    } catch {
+      return null;
+    }
+  }, []);
+
   const startConversation = useCallback(async (listing) => {
     const existing = messagesRef.current.find((m) => m.listingId === listing.id);
-    if (existing) return existing;
+    if (existing) {
+      const convoId = existing.dbConversationId || existing.id;
+      const hydrated = await hydrateThreadMessages(existing.id, convoId);
+      return hydrated || existing;
+    }
 
     const newThread = {
       id: String(Date.now()),
@@ -911,24 +940,30 @@ export function AppProvider({ children }) {
       return updated;
     });
 
-    // Create in DB
+    // Create in DB — this upserts, so if this buyer/seller/listing combo
+    // already has a conversation row server-side (e.g. created in a past
+    // session), we get that existing row's id back, not a fresh one.
     try {
       if (user.id && listing.seller?.id && listing.id && !listing.id.startsWith('temp')) {
         const dbConvo = await startConversationDB(listing.id, user.id, listing.seller.id);
-        // Attach dbConversationId to the thread
         setMessages((prev) => {
           const updated = prev.map((t) => t.id === newThread.id ? { ...t, dbConversationId: dbConvo.id } : t);
           messagesRef.current = updated;
           return updated;
         });
         newThread.dbConversationId = dbConvo.id;
+
+        // Pull any history that conversation already had — covers the case
+        // where the upsert just resurfaced a pre-existing conversation.
+        const hydrated = await hydrateThreadMessages(newThread.id, dbConvo.id);
+        if (hydrated) return hydrated;
       }
     } catch (e) {
       console.warn('[startConversation] DB failed:', e.message);
     }
 
     return newThread;
-  }, [user.id]);
+  }, [user.id, hydrateThreadMessages]);
 
   return (
     <AppContext.Provider
