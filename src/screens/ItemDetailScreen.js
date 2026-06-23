@@ -6,6 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { getAvailabilityStatus, formatOutpostSchedule } from '../lib/listingUtils';
+import { distanceMiles } from '../lib/location';
 import colors from '../theme/colors';
 
 const { width } = Dimensions.get('window');
@@ -22,7 +23,7 @@ export default function ItemDetailScreen({ navigation, route }) {
   const {
     startConversation, openCollectionModal, listings,
     openMarkSoldModal, userType, user, signOut, tabBarAnim,
-    incrementViews, renewListing,
+    incrementViews, renewListing, userLocation,
   } = useApp();
 
   // Show inline guest gate instead of Alert (which browsers block silently)
@@ -38,6 +39,14 @@ export default function ItemDetailScreen({ navigation, route }) {
   }, []);
 
   const liveItem = listings.find((l) => l.id === item.id) || item;
+
+  // Recompute distance live from GPS rather than trusting whatever stale
+  // value the listing object happens to carry — that field isn't kept in
+  // sync once you leave the feed screen that originally computed it.
+  const liveDistance = userLocation && liveItem.latitude != null && liveItem.longitude != null
+    ? distanceMiles(userLocation.latitude, userLocation.longitude, liveItem.latitude, liveItem.longitude)
+    : (typeof liveItem.distance === 'number' ? liveItem.distance : null);
+
   const saved = liveItem.saved;
   const isOwnListing = liveItem.seller?.id === user?.id || liveItem.seller?.id === 'me';
   const isSold = liveItem.sold;
@@ -120,7 +129,9 @@ export default function ItemDetailScreen({ navigation, route }) {
             </View>
             <View style={styles.metaChip}>
               <Ionicons name="location-outline" size={14} color={colors.primary} />
-              <Text style={styles.metaText}>{typeof liveItem.distance === 'number' ? liveItem.distance.toFixed(1) : liveItem.distance} mi away</Text>
+              <Text style={styles.metaText}>
+                {liveDistance != null ? `${liveDistance.toFixed(1)} mi away` : 'Distance unknown'}
+              </Text>
             </View>
             <View style={styles.metaChip}>
               <Ionicons name="time-outline" size={14} color={colors.textSecondary} />

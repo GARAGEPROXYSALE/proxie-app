@@ -195,8 +195,16 @@ export async function fetchUnconfirmedOutposts(userId) {
   return data || [];
 }
 
+// Signed-in users: counted once per listing (record_view dedupes via
+// listing_views). Guests have no stable identity to dedupe against, so they
+// fall back to the old unconditional increment.
 export async function incrementViewsRPC(listingId) {
-  await supabase.rpc('increment_views', { listing_id: listingId }).catch(() => {});
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.user) {
+    await supabase.rpc('record_view', { p_listing_id: listingId }).catch(() => {});
+  } else {
+    await supabase.rpc('increment_views', { listing_id: listingId }).catch(() => {});
+  }
 }
 
 // ── Photo upload ──────────────────────────────────────────────

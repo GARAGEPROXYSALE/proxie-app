@@ -6,7 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp } from '../context/AppContext';
-import { markMessagesRead } from '../lib/db';
+import { markMessagesRead, fetchMessages, subscribeToMessages } from '../lib/db';
 import { getTimerStatus } from '../lib/listingUtils';
 import ChatMenuSheet from '../components/ChatMenuSheet';
 import ChatTimerBar from '../components/ChatTimerBar';
@@ -55,7 +55,11 @@ function SafeMeetupBanner({ onDismiss }) {
 
 export default function ChatScreen({ navigation, route }) {
   const { thread, item, prefill } = route.params;
-  const { sendMessage, messages, user, markRead, openRatingPrompt, startChatTimer, extendChatTimer, clearThreadTimer } = useApp();
+  const {
+    sendMessage, messages, user, markRead, openRatingPrompt,
+    startChatTimer, extendChatTimer, clearThreadTimer,
+    loadThreadMessages, addIncomingMessage,
+  } = useApp();
   const [text, setText] = useState(prefill || '');
   const [menuOpen, setMenuOpen] = useState(false);
   const [offerOpen, setOfferOpen] = useState(false);
@@ -66,12 +70,43 @@ export default function ChatScreen({ navigation, route }) {
   const [, forceTick] = useState(0);
   const flatRef = useRef(null);
 
+  // Real conversation id — threads loaded fresh from the DB (e.g. after a
+  // refresh) never get a dbConversationId stamped on them; their `id` IS
+  // already the real conversation UUID. Only freshly-created-this-session
+  // threads carry dbConversationId separately. Falling back to thread.id
+  // everywhere below is what makes both cases work.
+  const convoId = thread.dbConversationId || thread.id;
+
   // Clear unread count when conversation opens (local state + DB)
   useEffect(() => {
     markRead(thread.id);
-    if (thread.dbConversationId && user?.id) {
-      markMessagesRead(thread.dbConversationId, user.id).catch(() => {});
+    if (convoId && user?.id) {
+      markMessagesRead(convoId, user.id).catch(() => {});
     }
+  }, [thread.id]);
+
+  // Load full message history — conversations from fetchConversations always
+  // start with messages: [] (history is fetched per-thread, here) so that
+  // the inbox list query stays cheap. Without this, reopening a thread after
+  // a refresh showed it as empty, which read as "the conversation is gone."
+  useEffect(() => {
+    if (!convoId) return;
+    fetchMessages(convoId)
+      .then((dbMessages) => loadThreadMessages(thread.id, dbMessages))
+      .catch(() => {});
+  }, [thread.id]);
+
+  // Live updates — so a message from the other party shows up without
+  // needing a refresh.
+  useEffect(() => {
+    if (!convoId) return;
+    const channel = subscribeToMessages(convoId, (msg) => {
+      // Our own messages are already in state via sendMessage's optimistic
+      // append — re-adding them here would double them up.
+      if (msg.from === user?.id) return;
+      addIncomingMessage(thread.id, msg);
+    });
+    return () => channel?.unsubscribe();
   }, [thread.id]);
 
   // Show safe meetup banner once per install

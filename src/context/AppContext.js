@@ -270,17 +270,27 @@ export function AppProvider({ children }) {
 
   // ── Filtered listings — sorted by distance, boosted/promoted injected ──
   const filteredListings = (() => {
-    const filtered = listings.filter((l) => {
-      // Compute real distance if we have GPS + listing coords
-      let dist = l.distance;
+    // Compute real distance first (map), then test against it (filter) — doing
+    // both in one filter() callback silently discarded the recomputed values,
+    // since reassigning the callback's local `l` doesn't change what filter()
+    // returns. Cards were rendering whatever stale distance/angle the listing
+    // already had.
+    const withDistance = listings.map((l) => {
+      let dist = typeof l.distance === 'number' ? l.distance : null;
       let angle = l.angle;
       if (userLocation && l.latitude != null && l.longitude != null) {
         dist = distanceMiles(userLocation.latitude, userLocation.longitude, l.latitude, l.longitude);
         angle = bearingAngle(userLocation.latitude, userLocation.longitude, l.latitude, l.longitude);
-        // Attach real values so RadarView + cards show them
-        l = { ...l, distance: dist, angle };
       }
-      const withinRange = dist <= proximityMiles;
+      return { ...l, distance: dist, angle };
+    });
+
+    const filtered = withDistance.filter((l) => {
+      // Unknown distance (no GPS yet, or listing has no coordinates) must
+      // exclude the listing, not pass it — `null <= proximityMiles` is true
+      // in JS (null coerces to 0), which used to let every coordinate-less
+      // listing through regardless of how tight the radius slider was set.
+      const withinRange = l.distance != null && l.distance <= proximityMiles;
       const matchesCategory = selectedCategory === 'all' || l.category.toLowerCase() === selectedCategory;
       const notBlocked = !blockedUsers.includes(l.seller?.id);
       const notOwn = l.seller?.id !== user?.id && l.seller?.id !== 'me';
@@ -776,6 +786,46 @@ export function AppProvider({ children }) {
 
   // ── Messages ─────────────────────────────────────────────────
 
+  // Conversations loaded via fetchConversations always start with
+  // messages: [] — full history is fetched separately, per-thread, when
+  // ChatScreen actually opens (this is that fetch's landing spot). Without
+  // this, reopening a thread after a refresh showed it as empty.
+  const loadThreadMessages = useCallback((threadId, dbMessages) => {
+    setMessages((prev) => {
+      const updated = prev.map((thread) => {
+        if (thread.id !== threadId) return thread;
+        // Preserve any optimistic message sent in this session before the
+        // fetch resolved, so it doesn't flash away once the DB list lands.
+        const dbIds = new Set(dbMessages.map((m) => m.id));
+        const localOnly = (thread.messages || []).filter(
+          (m) => !dbIds.has(m.id) && String(m.id).startsWith('temp-')
+        );
+        return { ...thread, messages: [...dbMessages, ...localOnly] };
+      });
+      messagesRef.current = updated;
+      return updated;
+    });
+  }, []);
+
+  // Appends a message delivered via the realtime subscription — lets the
+  // other party's messages show up live instead of only after a refresh.
+  const addIncomingMessage = useCallback((threadId, msg) => {
+    setMessages((prev) => {
+      const updated = prev.map((thread) => {
+        if (thread.id !== threadId) return thread;
+        if ((thread.messages || []).some((m) => m.id === msg.id)) return thread;
+        return {
+          ...thread,
+          messages: [...(thread.messages || []), msg],
+          lastMessage: msg.text,
+          timestamp: 'Now',
+        };
+      });
+      messagesRef.current = updated;
+      return updated;
+    });
+  }, []);
+
   const sendMessage = useCallback(async (threadId, text, extra = {}) => {
     const optimisticMsg = {
       id: `temp-${Date.now()}`,
@@ -921,6 +971,8 @@ export function AppProvider({ children }) {
         // Messages
         sendMessage,
         startConversation,
+        loadThreadMessages,
+        addIncomingMessage,
         visibleMessages,
         // Block
         blockedUsers,
