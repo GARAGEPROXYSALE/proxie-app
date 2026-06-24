@@ -59,7 +59,7 @@ function ListingGridCard({ item, onPress, interestedCount, onShowInterested, onA
         <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
         <Text style={styles.cardMeta}>{item.category}</Text>
         {item.postedAt ? (
-          <Text style={styles.cardAge}>{item.postedAt}</Text>
+          <Text style={styles.cardAge}>Posted {item.postedAt}</Text>
         ) : null}
         {interestedCount > 0 && (
           <TouchableOpacity

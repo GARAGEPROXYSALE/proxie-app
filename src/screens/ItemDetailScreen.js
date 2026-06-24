@@ -135,7 +135,7 @@ export default function ItemDetailScreen({ navigation, route }) {
             </View>
             <View style={styles.metaChip}>
               <Ionicons name="time-outline" size={14} color={colors.textSecondary} />
-              <Text style={[styles.metaText, { color: colors.textSecondary }]}>{liveItem.postedAt}</Text>
+              <Text style={[styles.metaText, { color: colors.textSecondary }]}>Posted {liveItem.postedAt}</Text>
             </View>
             {liveItem.views > 0 && (
               <View style={styles.metaChip}>

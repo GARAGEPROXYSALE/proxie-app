@@ -107,7 +107,7 @@ function SwipeableListingRow({ listing, onMarkSold, onStillAvailable, onPress })
         <View style={styles.myListingInfo}>
           <Text style={styles.myListingTitle} numberOfLines={1}>{listing.title}</Text>
           <Text style={styles.myListingPrice}>${listing.price}</Text>
-          <Text style={styles.myListingMeta}>{listing.postedAt}</Text>
+          <Text style={styles.myListingMeta}>Posted {listing.postedAt}</Text>
         </View>
         <Ionicons name="chevron-forward" size={14} color={colors.textLight} />
       </TouchableOpacity>
