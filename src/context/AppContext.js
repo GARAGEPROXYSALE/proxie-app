@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { mockListings, currentUser, mockMessages } from '../data/mockData';
 import { supabase } from '../lib/supabase';
 import {
-  fetchListings, fetchMyListings, fetchConversations, fetchMessages,
+  fetchListings, fetchNearbyListings, fetchMyListings, fetchConversations, fetchMessages,
   startConversationDB, sendMessageDB, markMessagesRead, subscribeToMessages,
   fetchWishlist, insertWishlistEntry, deleteWishlistEntry,
   insertListing, updateListingStatus, repostListingRPC, incrementViewsRPC,
@@ -152,6 +152,40 @@ export function AppProvider({ children }) {
 
     return () => subscription?.unsubscribe();
   }, []);
+
+  // Server-side radius search (PostGIS, via nearby_listings() RPC) — re-fetches
+  // from the database whenever location, the radius slider, or category change,
+  // instead of every client downloading the whole listings table and filtering
+  // it in JS. The initial fetchListings() above stays as a fallback for the
+  // brief window before GPS resolves (or for guests who never grant location).
+  // Debounced so dragging the slider doesn't fire a request per pixel.
+  const nearbyDebounceRef = useRef(null);
+  useEffect(() => {
+    if (!userLocation) return;
+    if (nearbyDebounceRef.current) clearTimeout(nearbyDebounceRef.current);
+    nearbyDebounceRef.current = setTimeout(() => {
+      fetchNearbyListings({
+        latitude: userLocation.latitude,
+        longitude: userLocation.longitude,
+        radiusMiles: proximityMiles,
+        category: selectedCategory,
+        // user.id defaults to the mock placeholder 'me' for guests — that's not
+        // a real uuid, and the RPC param is typed uuid, so only pass it through
+        // once the user is actually signed in.
+        excludeSellerId: isAuthenticated ? user?.id : null,
+      })
+        .then((rows) => {
+          if (rows.length === 0) return;
+          setListings((prev) => {
+            const byId = new Map(prev.map((l) => [l.id, l]));
+            rows.forEach((r) => byId.set(r.id, { ...byId.get(r.id), ...r }));
+            return Array.from(byId.values());
+          });
+        })
+        .catch(() => {});
+    }, 400);
+    return () => clearTimeout(nearbyDebounceRef.current);
+  }, [userLocation?.latitude, userLocation?.longitude, proximityMiles, selectedCategory, isAuthenticated, user?.id]);
 
   const loadUserSession = useCallback(async (authUser) => {
     let { data: profile } = await supabase

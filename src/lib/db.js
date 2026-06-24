@@ -27,6 +27,26 @@ export async function fetchListings() {
   return (data || []).map(normalizeListingFromDB);
 }
 
+// Server-side radius search via the nearby_listings() RPC (PostGIS ST_DWithin
+// under the hood) — the database filters by distance and joins seller/store
+// in one query, instead of every client downloading the entire listings
+// table and filtering it in JS. Requires migration_nearby_listings.sql to
+// have been run. Falls back to the old whole-table fetchListings() when the
+// caller has no location yet (nothing to filter by).
+export async function fetchNearbyListings({ latitude, longitude, radiusMiles, category, excludeSellerId }) {
+  const { data, error } = await supabase.rpc('nearby_listings', {
+    p_lat: latitude,
+    p_lon: longitude,
+    p_radius_miles: radiusMiles,
+    p_category: category && category !== 'all' ? category : null,
+    p_exclude_seller_id: excludeSellerId || null,
+  });
+
+  if (error) throw error;
+
+  return (data || []).map(normalizeNearbyRow);
+}
+
 export async function fetchMyListings(userId) {
   const { data, error } = await supabase
     .from('listings')
@@ -550,6 +570,67 @@ function normalizeListingFromDB(row) {
     // Placeholders populated by feed filter (proximity calc)
     distance: row.distance ?? null,
     angle: row.angle ?? Math.random() * 360,
+    saved: false,
+  };
+}
+
+// Same shape as normalizeListingFromDB, but reading the flat seller_*/store_*
+// columns nearby_listings() returns (a joined RPC result can't nest objects
+// the way a PostgREST embedded select can) — and trusting the distance the
+// database already computed instead of recalculating it client-side.
+function normalizeNearbyRow(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    title: row.title,
+    price: Number(row.price),
+    description: row.description,
+    category: row.category,
+    photos: row.photos || [],
+    latitude: row.latitude,
+    longitude: row.longitude,
+    address: row.address,
+    status: row.status,
+    active: row.status === 'active',
+    sold: row.status === 'sold',
+    pickedUp: row.status === 'picked_up',
+    createdAt: new Date(row.created_at).getTime(),
+    postedAt: timeAgoShort(new Date(row.created_at).getTime()),
+    expires_at: new Date(row.expires_at).getTime(),
+    is_boosted: row.is_boosted,
+    boosted_radius_miles: row.boosted_radius_miles,
+    is_promoted: row.is_promoted,
+    repost_of: row.repost_of,
+    repost_count: row.repost_count || 0,
+    impression_count: row.impression_count || 0,
+    tap_count: row.tap_count || 0,
+    views: row.tap_count || 0,
+    seller_type: row.seller_type || 'individual',
+    store_id: row.store_id,
+    store: row.store_name
+      ? { id: row.store_id, name: row.store_name, logo_url: row.store_logo_url, rating: row.store_rating, sales: row.store_sales }
+      : null,
+    availability_type: row.availability_type || 'anytime',
+    schedule: row.schedule || [],
+    is_outpost: row.is_outpost || false,
+    outpost_scheduled_at: row.outpost_scheduled_at ? new Date(row.outpost_scheduled_at).getTime() : null,
+    outpost_confirmed: row.outpost_confirmed || false,
+    outpost_confirmed_at: row.outpost_confirmed_at ? new Date(row.outpost_confirmed_at).getTime() : null,
+    outpost_fee_paid: row.outpost_fee_paid || false,
+    outpost_fee_amount: row.outpost_fee_amount != null ? Number(row.outpost_fee_amount) : null,
+    seller: {
+      id: row.seller_id,
+      name: row.seller_display_name || 'Seller',
+      avatar_url: row.seller_avatar_url || null,
+      rating: row.seller_rating ?? 5.0,
+      sales: row.seller_sales ?? 0,
+      status: row.seller_status || '',
+      building: row.seller_building || null,
+      seller_type: row.seller_seller_type || 'individual',
+      store_id: row.seller_store_id || null,
+    },
+    distance: row.distance_miles != null ? Number(row.distance_miles) : null,
+    angle: null, // bearing is computed client-side once we have userLocation
     saved: false,
   };
 }
