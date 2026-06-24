@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { timeAgoShort } from './listingUtils';
 
 const ANON = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -514,6 +515,7 @@ function normalizeListingFromDB(row) {
     sold: row.status === 'sold',
     pickedUp: row.status === 'picked_up',
     createdAt: new Date(row.created_at).getTime(),
+    postedAt: timeAgoShort(new Date(row.created_at).getTime()),
     expires_at: new Date(row.expires_at).getTime(),
     is_boosted: row.is_boosted,
     boosted_radius_miles: row.boosted_radius_miles,
@@ -522,6 +524,7 @@ function normalizeListingFromDB(row) {
     repost_count: row.repost_count || 0,
     impression_count: row.impression_count || 0,
     tap_count: row.tap_count || 0,
+    views: row.tap_count || 0,
     seller_type: row.seller_type || 'individual',
     store_id: row.store_id,
     store: row.store || null,
