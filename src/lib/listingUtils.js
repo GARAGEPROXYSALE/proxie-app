@@ -158,12 +158,15 @@ export function getAvailabilityStatus(listing, now = new Date()) {
       nextDate.setDate(now.getDate() + offset);
       nextDate.setHours(Math.floor(startMin / 60), startMin % 60, 0, 0);
 
+      // "Likely" on purpose — this is the seller's stated schedule, not proof
+      // they're unreachable outside it. Avoid language that reads as certain
+      // unavailability when they may well still answer a message.
       if (offset === 0) {
         const msUntil = nextDate - now;
-        return { state: 'opens', label: `Opens in ${formatDuration(msUntil)}`, nextChangeAt: nextDate };
+        return { state: 'opens', label: `Likely available in ${formatDuration(msUntil)}`, nextChangeAt: nextDate };
       }
       const dayLabel = offset === 1 ? 'tomorrow' : DAY_NAMES[checkDay];
-      return { state: 'closed', label: `Closed until ${dayLabel} ${formatMinutes(startMin)}`, nextChangeAt: nextDate };
+      return { state: 'closed', label: `Likely available ${dayLabel} ${formatMinutes(startMin)}`, nextChangeAt: nextDate };
     }
   }
 
