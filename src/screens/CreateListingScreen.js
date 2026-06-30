@@ -307,7 +307,7 @@ export default function CreateListingScreen({ navigation }) {
           <View style={styles.successIcon}>
             <Ionicons name="checkmark-circle" size={72} color={colors.success} />
           </View>
-          <Text style={styles.successTitle}>You're live!</Text>
+          <Text style={styles.successTitle}>It's live!</Text>
           <Text style={styles.successSub}>
             Your listing is active for <Text style={{ fontWeight: '800', color: colors.text }}>7 days</Text>.{'\n'}
             After that, hop into My Garage and tap{' '}
