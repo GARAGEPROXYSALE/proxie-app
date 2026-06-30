@@ -235,6 +235,22 @@ export default function CreateListingScreen({ navigation }) {
       return;
     }
 
+    if (cleanPrice === 0) {
+      Alert.alert(
+        'List for free?',
+        'You\'re about to list this item at no cost. Confirm to publish it as a free listing.',
+        [
+          { text: 'Go Back', style: 'cancel' },
+          { text: 'Yes, list for free', onPress: () => doPublish(cleanTitle, cleanDesc, cleanPrice) },
+        ],
+      );
+      return;
+    }
+
+    doPublish(cleanTitle, cleanDesc, cleanPrice);
+  };
+
+  const doPublish = async (cleanTitle, cleanDesc, cleanPrice) => {
     setPublishing(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
