@@ -1,70 +1,13 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  SafeAreaView, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator,
+  SafeAreaView, ScrollView, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { supabase } from '../lib/supabase';
 import colors from '../theme/colors';
-
-function OAuthDivider() {
-  return (
-    <View style={oauthStyles.dividerRow}>
-      <View style={oauthStyles.dividerLine} />
-      <Text style={oauthStyles.dividerText}>or continue with</Text>
-      <View style={oauthStyles.dividerLine} />
-    </View>
-  );
-}
-
-function OAuthButtons({ onError }) {
-  const redirectTo = Platform.OS === 'web' ? window.location.origin : 'proxie://auth-callback';
-  const [loading, setLoading] = useState(null); // 'google' | 'facebook' | null
-
-  const handleOAuth = async (provider) => {
-    setLoading(provider);
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: { redirectTo },
-      });
-      if (error) onError?.(error.message);
-    } catch (e) {
-      onError?.('Something went wrong. Please try again.');
-    } finally {
-      setLoading(null);
-    }
-  };
-
-  return (
-    <View style={oauthStyles.row}>
-      <TouchableOpacity
-        style={[oauthStyles.btn, loading === 'google' && oauthStyles.btnLoading]}
-        onPress={() => handleOAuth('google')}
-        disabled={!!loading}
-        activeOpacity={0.8}
-      >
-        {loading === 'google'
-          ? <ActivityIndicator size="small" color={colors.primary} />
-          : <Ionicons name="logo-google" size={20} color="#EA4335" />}
-        <Text style={oauthStyles.btnText}>Google</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={[oauthStyles.btn, loading === 'facebook' && oauthStyles.btnLoading]}
-        onPress={() => handleOAuth('facebook')}
-        disabled={!!loading}
-        activeOpacity={0.8}
-      >
-        {loading === 'facebook'
-          ? <ActivityIndicator size="small" color={colors.primary} />
-          : <Ionicons name="logo-facebook" size={20} color="#1877F2" />}
-        <Text style={oauthStyles.btnText}>Facebook</Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
 
 export default function SignInScreen({ navigation }) {
   const { signIn } = useApp();
@@ -151,9 +94,6 @@ export default function SignInScreen({ navigation }) {
               </View>
             ) : null}
 
-            {/* Social login */}
-            <OAuthButtons onError={setError} />
-            <OAuthDivider />
 
             <View style={styles.field}>
               <Text style={styles.label}>Email</Text>
@@ -217,26 +157,6 @@ export default function SignInScreen({ navigation }) {
   );
 }
 
-const oauthStyles = StyleSheet.create({
-  row: { flexDirection: 'row', gap: 10, marginBottom: 20 },
-  btn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: colors.cardBackground,
-    borderRadius: 14,
-    paddingVertical: 13,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  btnLoading: { opacity: 0.6 },
-  btnText: { fontSize: 13, fontWeight: '600', color: colors.text },
-  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
-  dividerText: { fontSize: 12, color: colors.textLight, fontWeight: '500' },
-});
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
