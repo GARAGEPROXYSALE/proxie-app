@@ -14,6 +14,7 @@ import MarkSoldModal from './src/components/MarkSoldModal';
 import RatingModal from './src/components/RatingModal';
 
 // Screens
+import WalkthroughScreen from './src/screens/WalkthroughScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import SignUpScreen from './src/screens/SignUpScreen';
 import GuestModeScreen from './src/screens/GuestModeScreen';
@@ -45,6 +46,7 @@ const NearbyStack = createStackNavigator();
 function OnboardingNavigator() {
   return (
     <OnboardingStack.Navigator screenOptions={{ headerShown: false, cardStyle: { flex: 1 } }}>
+      <OnboardingStack.Screen name="Walkthrough" component={WalkthroughScreen} />
       <OnboardingStack.Screen name="Welcome" component={OnboardingScreen} />
       <OnboardingStack.Screen name="SignUp" component={SignUpScreen} />
       <OnboardingStack.Screen name="SignIn" component={SignInScreen} />
