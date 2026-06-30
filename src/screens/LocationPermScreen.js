@@ -13,7 +13,7 @@ const TRUST_SIGNALS = [
     icon: 'location-outline',
     color: colors.primary,
     title: 'Show items near you',
-    body: 'Distance-sorted listings from 500 ft to 5 miles away.',
+    body: 'Distance-sorted listings from 500 ft to 7 miles away.',
   },
   {
     icon: 'eye-off-outline',

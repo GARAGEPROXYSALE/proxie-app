@@ -700,8 +700,9 @@ export default function CreateListingScreen({ navigation }) {
               )}
             </View>
 
-            {/* Outpost */}
-            {!isTickets && (
+            {/* Outpost — paused: backing DB columns (is_outpost, outpost_scheduled_at)
+                don't exist yet, so this stays hidden until that's built out. */}
+            {false && !isTickets && (
               <View style={styles.field}>
                 <TouchableOpacity
                   style={styles.outpostToggleRow}

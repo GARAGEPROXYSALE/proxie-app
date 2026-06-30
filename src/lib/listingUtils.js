@@ -11,7 +11,7 @@ export function formatOutpostSchedule(timestamp) {
 
 // ── Proximity snap points & labels ──────────────────────────────
 
-export const PROXIMITY_SNAPS = [0.095, 0.189, 0.25, 0.5, 1, 2, 3, 5];
+export const PROXIMITY_SNAPS = [0.095, 0.189, 0.25, 0.5, 1, 2, 3, 5, 7];
 
 export function proximityLabel(miles) {
   if (miles <= 0.095) return '500 ft';
@@ -21,7 +21,8 @@ export function proximityLabel(miles) {
   if (miles <= 1)     return '1 mi';
   if (miles <= 2)     return '2 mi';
   if (miles <= 3)     return '3 mi';
-  return '5 mi';
+  if (miles <= 5)     return '5 mi';
+  return '7 mi';
 }
 
 /** Returns the next snap value above `miles`, or null if already at max. */

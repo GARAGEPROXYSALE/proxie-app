@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import colors from '../theme/colors';
 
 const INCLUDED = [
-  { icon: 'radio-outline',       label: 'See items within 500 ft – 5 mi' },
+  { icon: 'radio-outline',       label: 'See items within 500 ft – 7 mi' },
   { icon: 'eye-outline',         label: 'View item details and photos' },
   { icon: 'map-outline',         label: 'Radar map of nearby sales' },
 ];
