@@ -10,7 +10,6 @@ import { AppProvider, useApp } from './src/context/AppContext';
 import { addNotificationResponseListener } from './src/lib/pushNotifications';
 import CustomTabBar from './src/components/CustomTabBar';
 import SaveToast from './src/components/SaveToast';
-import CollectionModal from './src/components/CollectionModal';
 import MarkSoldModal from './src/components/MarkSoldModal';
 import RatingModal from './src/components/RatingModal';
 
@@ -135,7 +134,6 @@ function GlobalOverlays({ navigationRef }) {
 
   return (
     <>
-      <CollectionModal />
       <SaveToast visible={toast.visible} onNavigate={handleToastNavigate} />
       <MarkSoldModal />
       <RatingModal />

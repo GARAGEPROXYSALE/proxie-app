@@ -15,7 +15,7 @@ const INCLUDED = [
 const EXCLUDED = [
   { icon: 'chatbubble-outline',  label: 'Message sellers' },
   { icon: 'storefront-outline',  label: 'Post your own listings' },
-  { icon: 'bookmark-outline',    label: 'Save items to collections' },
+  { icon: 'heart-outline',        label: 'Heart items to save them for later' },
   { icon: 'star-outline',        label: 'Ratings & seller history' },
 ];
 

@@ -21,7 +21,7 @@ const conditionColors = {
 export default function ItemDetailScreen({ navigation, route }) {
   const { item } = route.params;
   const {
-    startConversation, openCollectionModal, listings,
+    startConversation, toggleSaved, listings,
     openMarkSoldModal, userType, user, signOut, tabBarAnim,
     incrementViews, renewListing, userLocation,
   } = useApp();
@@ -60,9 +60,7 @@ export default function ItemDetailScreen({ navigation, route }) {
   const isGone = isSold || isPickedUp;
   const isHostOwner = userType === 'host' && isOwnListing;
 
-  const handleSave = () => {
-    openCollectionModal(liveItem, () => navigation.navigate('Saved'));
-  };
+  const handleSave = () => toggleSaved(liveItem.id);
 
   const handleMessage = async () => {
     if (userType === 'guest') {
@@ -86,9 +84,9 @@ export default function ItemDetailScreen({ navigation, route }) {
         </TouchableOpacity>
         <TouchableOpacity style={styles.topBtn} onPress={handleSave}>
           <Ionicons
-            name={saved ? 'bookmark' : 'bookmark-outline'}
+            name={saved ? 'heart' : 'heart-outline'}
             size={22}
-            color={saved ? colors.primary : colors.text}
+            color={saved ? colors.danger : colors.text}
           />
         </TouchableOpacity>
       </View>

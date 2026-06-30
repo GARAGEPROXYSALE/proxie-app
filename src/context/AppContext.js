@@ -19,16 +19,6 @@ import { startOutpostLocationMonitoring } from '../lib/outpostLocation';
 
 const AppContext = createContext(null);
 
-const DEFAULT_COLLECTIONS = [
-  { id: 'saved-all', name: 'All Saved Items', emoji: '🔖', count: 2 },
-  { id: 'saved-furn', name: 'Furniture', emoji: '🛋️', count: 0 },
-  { id: 'saved-tech', name: 'Electronics', emoji: '📱', count: 0 },
-];
-
-const DEFAULT_ITEM_COLLECTIONS = {
-  '2': ['saved-all'],
-  '6': ['saved-all'],
-};
 
 // ── Feed ranking helpers ──────────────────────────────────────
 
@@ -87,13 +77,6 @@ export function AppProvider({ children }) {
   const [user, setUser] = useState(currentUser);
   const [selectedCategory, setSelectedCategory] = useState('all');
 
-  // ── Collections ──────────────────────────────────────────────
-  const [collections, setCollections] = useState(DEFAULT_COLLECTIONS);
-  const [itemCollections, setItemCollections] = useState(DEFAULT_ITEM_COLLECTIONS);
-
-  // ── Collections modal ────────────────────────────────────────
-  const [collectionModal, setCollectionModal] = useState({ visible: false, item: null });
-  const onNavigateRef = useRef(null);
 
   // ── Save toast ───────────────────────────────────────────────
   const [toast, setToast] = useState({ visible: false });
@@ -367,42 +350,6 @@ export function AppProvider({ children }) {
     }
   }, []);
 
-  // ── Collections actions ──────────────────────────────────────
-
-  const openCollectionModal = useCallback((item, onNavigate) => {
-    onNavigateRef.current = onNavigate || null;
-    setCollectionModal({ visible: true, item });
-  }, []);
-
-  const closeCollectionModal = useCallback(() => {
-    setCollectionModal({ visible: false, item: null });
-  }, []);
-
-  const createCollection = useCallback((name, emoji = '📁') => {
-    const id = 'col-' + Date.now();
-    setCollections((prev) => [...prev, { id, name, emoji, count: 0 }]);
-    return id;
-  }, []);
-
-  const saveToCollection = useCallback((itemId, collectionId) => {
-    setListings((prev) =>
-      prev.map((l) => (l.id === itemId ? { ...l, saved: true } : l))
-    );
-    setItemCollections((prev) => {
-      const existing = prev[itemId] || [];
-      if (existing.includes(collectionId)) return prev;
-      return { ...prev, [itemId]: [...existing, collectionId] };
-    });
-    setCollections((prev) =>
-      prev.map((c) =>
-        c.id === collectionId ? { ...c, count: c.count + 1 } : c
-      )
-    );
-    closeCollectionModal();
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    setToast({ visible: true });
-    toastTimer.current = setTimeout(() => setToast({ visible: false }), 3500);
-  }, [closeCollectionModal]);
 
   const dismissToast = useCallback(() => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -1018,13 +965,6 @@ export function AppProvider({ children }) {
         messages,
         user, setUser,
         selectedCategory, setSelectedCategory,
-        // Collections
-        collections, itemCollections,
-        collectionModal,
-        openCollectionModal,
-        closeCollectionModal,
-        createCollection,
-        saveToCollection,
         // Save toast
         toast,
         navigateFromToast,

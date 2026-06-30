@@ -11,11 +11,11 @@ const conditionColors = {
   'Fair': colors.warning,
 };
 
-export default function ItemCard({ item, onPress, onNavigateToSaved, style }) {
-  const { openCollectionModal } = useApp();
+export default function ItemCard({ item, onPress, style }) {
+  const { toggleSaved } = useApp();
   const onSave = (e) => {
     e.stopPropagation();
-    openCollectionModal(item, onNavigateToSaved);
+    toggleSaved(item.id);
   };
   return (
     <TouchableOpacity style={[styles.card, style]} onPress={onPress} activeOpacity={0.85}>
@@ -27,9 +27,9 @@ export default function ItemCard({ item, onPress, onNavigateToSaved, style }) {
         />
         <TouchableOpacity style={styles.saveBtn} onPress={onSave} activeOpacity={0.8}>
           <Ionicons
-            name={item.saved ? 'bookmark' : 'bookmark-outline'}
+            name={item.saved ? 'heart' : 'heart-outline'}
             size={18}
-            color={item.saved ? colors.primary : '#fff'}
+            color={item.saved ? colors.danger : '#fff'}
           />
         </TouchableOpacity>
         <View style={[styles.conditionBadge, { backgroundColor: conditionColors[item.condition] || colors.primary }]}>
@@ -51,11 +51,11 @@ export default function ItemCard({ item, onPress, onNavigateToSaved, style }) {
   );
 }
 
-export function ItemCardHorizontal({ item, onPress, onNavigateToSaved }) {
-  const { openCollectionModal } = useApp();
+export function ItemCardHorizontal({ item, onPress }) {
+  const { toggleSaved } = useApp();
   const onSave = (e) => {
     e?.stopPropagation?.();
-    openCollectionModal(item, onNavigateToSaved);
+    toggleSaved(item.id);
   };
   return (
     <TouchableOpacity style={[styles.hCard, item.sold && styles.hCardSold]} onPress={onPress} activeOpacity={0.85}>
@@ -88,9 +88,9 @@ export function ItemCardHorizontal({ item, onPress, onNavigateToSaved }) {
       </View>
       <TouchableOpacity onPress={onSave} style={styles.hSaveBtn}>
         <Ionicons
-          name={item.saved ? 'bookmark' : 'bookmark-outline'}
+          name={item.saved ? 'heart' : 'heart-outline'}
           size={20}
-          color={item.saved ? colors.primary : colors.textLight}
+          color={item.saved ? colors.danger : colors.textLight}
         />
       </TouchableOpacity>
     </TouchableOpacity>
