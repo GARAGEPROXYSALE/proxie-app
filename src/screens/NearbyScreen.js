@@ -45,7 +45,7 @@ export default function NearbyScreen({ navigation }) {
     return () => clearTimeout(timer);
   }, [userLocation]);
 
-  // "Active now" depends on knowing where the user is — collapse the filter
+  // "Available now" depends on knowing where the user is — collapse the filter
   // (and clear it) the moment location isn't available, instead of leaving
   // it silently applied with no visible toggle to turn it off.
   useEffect(() => {
@@ -190,7 +190,7 @@ export default function NearbyScreen({ navigation }) {
                 activeOpacity={0.8}
               >
                 <View style={[styles.activeNowDot, activeNowOnly && styles.activeNowDotOn]} />
-                <Text style={[styles.activeNowText, activeNowOnly && styles.activeNowTextOn]}>Active now</Text>
+                <Text style={[styles.activeNowText, activeNowOnly && styles.activeNowTextOn]}>Available now</Text>
               </TouchableOpacity>
             )}
             <TouchableOpacity
@@ -233,7 +233,7 @@ export default function NearbyScreen({ navigation }) {
               <View style={styles.scanStatus}>
                 <Text style={styles.scanCount}>
                   {radarItems.length} {isHost ? 'listings' : 'items'} nearby
-                  {activeNowOnly && radarItems.length !== filteredListings.length ? ` · active now` : ''}
+                  {activeNowOnly && radarItems.length !== filteredListings.length ? ` · available now` : ''}
                 </Text>
                 <Text style={styles.scanSub}>
                   {isHost ? 'Tap a dot to view a listing' : 'Tap a dot to see the item'}

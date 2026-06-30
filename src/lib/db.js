@@ -17,9 +17,6 @@ export async function fetchListings() {
     `)
     .eq('status', 'active')
     .gt('expires_at', new Date().toISOString())
-    // Outpost listings only enter the public feed once the posting fee clears —
-    // otherwise a seller gets free exposure before paying.
-    .or('is_outpost.is.false,outpost_fee_paid.eq.true')
     .order('created_at', { ascending: false });
 
   if (error) throw error;
@@ -93,9 +90,6 @@ export async function insertListing(listing) {
     address: listing.address,
     availability_type: listing.availabilityType || 'anytime',
     schedule: listing.schedule || [],
-    is_outpost: listing.isOutpost || false,
-    outpost_scheduled_at: listing.outpostScheduledAt || null,
-    outpost_fee_paid: false,
   };
 
   // Try with condition first; if the column doesn't exist in this DB, retry without it
