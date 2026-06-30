@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { Animated, Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { mockListings, currentUser, mockMessages } from '../data/mockData';
+import { currentUser } from '../data/mockData';
 import { supabase } from '../lib/supabase';
 import {
   fetchListings, fetchNearbyListings, fetchMyListings, fetchConversations, fetchMessages,
@@ -80,9 +80,9 @@ export function AppProvider({ children }) {
   const [isLive, setIsLive] = useState(true);
   const [proximityMiles, setProximityMiles] = useState(1);
   const [blockedUsers, setBlockedUsers] = useState([]);
-  const [listings, setListings] = useState(mockListings);
-  const [messages, setMessages] = useState(mockMessages);
-  const messagesRef = useRef(mockMessages);
+  const [listings, setListings] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const messagesRef = useRef([]);
   const [user, setUser] = useState(currentUser);
   const [selectedCategory, setSelectedCategory] = useState('all');
 
@@ -113,17 +113,7 @@ export function AppProvider({ children }) {
   useEffect(() => {
     // Load real listings from Supabase (all users including guests see these)
     fetchListings()
-      .then((rows) => {
-        if (rows.length >= 10) {
-          // Enough real content — drop mock data entirely
-          setListings(rows);
-        } else if (rows.length > 0) {
-          // Merge real listings at the top, keep mock data to fill the feed
-          const realIds = new Set(rows.map((r) => r.id));
-          setListings([...rows, ...mockListings.filter((m) => !realIds.has(m.id))]);
-        }
-        // else keep mockListings as-is
-      })
+      .then((rows) => { if (rows.length > 0) setListings(rows); })
       .catch(() => {});
 
     // Restore Supabase session
@@ -141,7 +131,7 @@ export function AppProvider({ children }) {
         setIsAuthenticated(false);
         setUserType(null);
         setBlockedUsers([]);
-        setMessages(mockMessages);
+        setMessages([]);
       }
     });
 
@@ -545,7 +535,7 @@ export function AppProvider({ children }) {
       saved: false,
       active: true,
       createdAt: now,
-      expires_at: now + 7 * 24 * 3600000,
+      expires_at: now + 30 * 24 * 3600000,
       status: 'active',
       repost_of: null, repost_count: 0, impression_count: 0, tap_count: 0,
       is_boosted: false, boosted_radius_miles: null, is_promoted: false,
@@ -621,7 +611,7 @@ export function AppProvider({ children }) {
         ...original,
         id: `repost-${now}`,
         createdAt: now,
-        expires_at: now + 7 * 24 * 3600000,
+        expires_at: now + 30 * 24 * 3600000,
         status: 'active',
         active: true,
         repost_of: original.id,

@@ -57,7 +57,7 @@ export function isStale(createdAt) {
 /** True if listing is older than 7 days (auto-expiry threshold). */
 export function isExpired(createdAt) {
   if (!createdAt) return false;
-  return Date.now() - createdAt > 7 * 24 * 3600000;
+  return Date.now() - createdAt > 30 * 24 * 3600000;
 }
 
 /**
