@@ -10,6 +10,7 @@ import {
   insertListing, updateListingStatus, repostListingRPC, incrementViewsRPC,
   updateListingAvailability, updateListingLocation, setConversationTimer, clearConversationTimer,
   createOutpostCheckoutUrl, fetchInterestedBuyers, setListingSaved, fetchUnconfirmedOutposts,
+  writeRating, markFirstSellerReply, setPhoneVerified,
 } from '../lib/db';
 import { getUserLocation, distanceMiles, bearingAngle } from '../lib/location';
 import { isStale, PROXIMITY_SNAPS, getTimerStatus } from '../lib/listingUtils';
@@ -224,6 +225,11 @@ export function AppProvider({ children }) {
       registerForPushNotificationsAsync()
         .then((token) => { if (token) savePushToken(profile.id, token); })
         .catch(() => {});
+
+      // Mark phone verified if this session was authenticated via OTP phone login.
+      if (authUser.phone && !profile.phone_verified) {
+        setPhoneVerified(profile.id).catch(() => {});
+      }
 
       // If this seller already has an unconfirmed Outpost listing (e.g. they
       // killed the app and reopened it before arriving), resume monitoring.
@@ -451,19 +457,23 @@ export function AppProvider({ children }) {
     }, 600);
   }, [user?.name, user?.id]);
 
-  const submitRating = useCallback((vote) => {
-    if (vote === 'up') {
-      setUser((prev) => ({
-        ...prev,
-        rating: Math.min(5.0, parseFloat((prev.rating + 0.1).toFixed(1))),
-      }));
-    }
+  const submitRating = useCallback((vote, note = '') => {
     setRatingPrompt((prev) => {
-      if (prev.ratedUserId) {
+      const { ratedUserId, item, role } = prev;
+      if (ratedUserId) {
+        // Persist to DB — fire and forget so the sheet closes instantly
+        writeRating({
+          listingId: item?.id || null,
+          ratedId: ratedUserId,
+          vote,
+          note,
+          role: role || 'seller',
+        }).catch(() => {});
+
         sendPushNotification(
-          prev.ratedUserId,
+          ratedUserId,
           'You got rated!',
-          `${user.name || 'Someone'} left you a ${vote === 'up' ? 'positive' : 'negative'} rating for "${prev.item?.title}"`,
+          `${user.name || 'Someone'} left you a ${vote === 'up' ? 'positive' : 'negative'} rating for "${item?.title}"`,
           { type: 'rating' }
         );
       }
@@ -888,6 +898,10 @@ export function AppProvider({ children }) {
       const convoId = thread?.dbConversationId || thread?.id;
       if (convoId && user.id) {
         await sendMessageDB(convoId, user.id, text, extra);
+        // Track first seller reply for response-time badge
+        if (thread?.seller_id === user.id) {
+          markFirstSellerReply(convoId, user.id).catch(() => {});
+        }
       }
       if (thread?.with?.id) {
         const baseBody = extra.type === 'offer' ? `Sent an offer: $${extra.offerPrice}` : text;

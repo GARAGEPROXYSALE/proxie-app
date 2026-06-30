@@ -195,6 +195,12 @@ export default function ItemDetailScreen({ navigation, route }) {
             <View style={styles.sellerInfo}>
               <View style={styles.hostLabelRow}>
                 <Text style={styles.sellerName}>{item.seller.name}</Text>
+                {item.seller.phone_verified ? (
+                  <View style={styles.verifiedBadge}>
+                    <Ionicons name="shield-checkmark" size={11} color={colors.success} />
+                    <Text style={styles.verifiedText}>Verified</Text>
+                  </View>
+                ) : null}
               </View>
               {item.seller.building ? (
                 <View style={styles.buildingRow}>
@@ -481,6 +487,8 @@ const styles = StyleSheet.create({
   sellerInfo: { flex: 1 },
   hostLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 3 },
   sellerName: { fontSize: 15, fontWeight: '700', color: colors.text },
+  verifiedBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: colors.success + '15', borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2 },
+  verifiedText: { fontSize: 10, fontWeight: '700', color: colors.success },
   buildingRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 3 },
   buildingText: { fontSize: 12, color: colors.primary },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },

@@ -11,7 +11,8 @@ export async function fetchListings() {
     .select(`
       *,
       seller:profiles!seller_id (
-        id, display_name, avatar_url, rating, sales, status, building, seller_type, store_id
+        id, display_name, avatar_url, rating, sales, status, building, seller_type, store_id,
+        phone_verified, avg_response_hours, ratings_count
       ),
       store:stores (id, name, logo_url, rating, sales)
     `)
@@ -560,6 +561,9 @@ function normalizeListingFromDB(row) {
       building: seller.building || null,
       seller_type: seller.seller_type || 'individual',
       store_id: seller.store_id || null,
+      phone_verified: seller.phone_verified || false,
+      avg_response_hours: seller.avg_response_hours ?? null,
+      ratings_count: seller.ratings_count ?? 0,
     },
     // Placeholders populated by feed filter (proximity calc)
     distance: row.distance ?? null,
@@ -622,6 +626,9 @@ function normalizeNearbyRow(row) {
       building: row.seller_building || null,
       seller_type: row.seller_seller_type || 'individual',
       store_id: row.seller_store_id || null,
+      phone_verified: row.seller_phone_verified || false,
+      avg_response_hours: row.seller_avg_response_hours ?? null,
+      ratings_count: row.seller_ratings_count ?? 0,
     },
     distance: row.distance_miles != null ? Number(row.distance_miles) : null,
     angle: null, // bearing is computed client-side once we have userLocation
@@ -683,4 +690,53 @@ function formatTime(iso) {
   if (diffDays === 1) return 'Yesterday';
   if (diffDays < 7) return d.toLocaleDateString([], { weekday: 'short' });
   return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
+// ── Trust signals ────────────────────────────────────────────
+
+export async function writeRating({ listingId, ratedId, vote, note, role }) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user) return;
+  const { error } = await supabase.from('ratings').insert({
+    listing_id: listingId || null,
+    rater_id: session.user.id,
+    rated_id: ratedId,
+    vote,
+    note: note || '',
+    role,
+  });
+  // 23505 = unique violation — user already rated this listing, skip silently
+  if (error && error.code !== '23505') throw error;
+  await supabase.rpc('refresh_profile_rating', { p_user_id: ratedId }).catch(() => {});
+}
+
+export async function markFirstSellerReply(conversationId, sellerId) {
+  const { error } = await supabase
+    .from('conversations')
+    .update({ first_seller_reply_at: new Date().toISOString() })
+    .eq('id', conversationId)
+    .is('first_seller_reply_at', null);
+  if (error) return;
+
+  // Recompute rolling average response time for this seller
+  const { data } = await supabase
+    .from('conversations')
+    .select('first_seller_reply_at, created_at')
+    .eq('seller_id', sellerId)
+    .not('first_seller_reply_at', 'is', null);
+  if (!data?.length) return;
+
+  const avgHours = data.reduce((sum, c) => {
+    return sum + (new Date(c.first_seller_reply_at) - new Date(c.created_at)) / 3600000;
+  }, 0) / data.length;
+
+  await supabase
+    .from('profiles')
+    .update({ avg_response_hours: Math.round(avgHours * 10) / 10 })
+    .eq('id', sellerId)
+    .catch(() => {});
+}
+
+export async function setPhoneVerified(userId) {
+  await supabase.from('profiles').update({ phone_verified: true }).eq('id', userId).catch(() => {});
 }

@@ -114,12 +114,40 @@ export default function SellerProfileScreen({ navigation, route }) {
             </View>
           ) : null}
 
+          {/* Trust badges */}
+          {(fullProfile?.phone_verified || fullProfile?.avg_response_hours != null) ? (
+            <View style={styles.badgeRow}>
+              {fullProfile?.phone_verified ? (
+                <View style={styles.badge}>
+                  <Ionicons name="shield-checkmark" size={13} color={colors.success} />
+                  <Text style={styles.badgeText}>Phone Verified</Text>
+                </View>
+              ) : null}
+              {fullProfile?.avg_response_hours != null ? (
+                <View style={styles.badge}>
+                  <Ionicons name="time-outline" size={13} color={colors.primary} />
+                  <Text style={styles.badgeText}>
+                    {fullProfile.avg_response_hours < 1
+                      ? 'Replies within an hour'
+                      : fullProfile.avg_response_hours < 6
+                        ? 'Replies in a few hours'
+                        : fullProfile.avg_response_hours < 24
+                          ? 'Replies same day'
+                          : 'Replies within a few days'}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+          ) : null}
+
           {/* Stats */}
           <View style={styles.statsRow}>
             <View style={styles.stat}>
               <Ionicons name="star" size={18} color="#FFB800" />
               <Text style={styles.statNum}>{seller.rating?.toFixed(1) ?? '—'}</Text>
-              <Text style={styles.statLabel}>Rating</Text>
+              <Text style={styles.statLabel}>
+                {fullProfile?.ratings_count ? `${fullProfile.ratings_count} ratings` : 'Rating'}
+              </Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.stat}>
@@ -393,6 +421,29 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
     marginBottom: 12,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: colors.cardBackground,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.text,
   },
   emptyListings: {
     alignItems: 'center',
