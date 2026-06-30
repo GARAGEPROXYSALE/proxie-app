@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, Image, ScrollView, TouchableOpacity, Pressable, StyleSheet,
-  SafeAreaView, Dimensions, Alert, Animated, Platform,
+  SafeAreaView, Dimensions, Alert, Animated, Platform, FlatList, Modal, StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
@@ -25,6 +25,12 @@ export default function ItemDetailScreen({ navigation, route }) {
     openMarkSoldModal, userType, user, signOut, tabBarAnim,
     incrementViews, renewListing, userLocation,
   } = useApp();
+
+  const [photoIndex, setPhotoIndex] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const galleryRef = useRef(null);
+  const lightboxRef = useRef(null);
 
   // Show inline guest gate instead of Alert (which browsers block silently)
   const [showGuestBanner, setShowGuestBanner] = useState(false);
@@ -87,13 +93,72 @@ export default function ItemDetailScreen({ navigation, route }) {
         </TouchableOpacity>
       </View>
 
+      {/* Full-screen lightbox */}
+      <Modal visible={lightboxOpen} transparent animationType="fade" onRequestClose={() => setLightboxOpen(false)} statusBarTranslucent>
+        <StatusBar hidden />
+        <View style={styles.lightboxOverlay}>
+          <FlatList
+            ref={lightboxRef}
+            data={liveItem.photos}
+            keyExtractor={(_, i) => String(i)}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            initialScrollIndex={lightboxIndex}
+            getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
+            onMomentumScrollEnd={(e) => {
+              setLightboxIndex(Math.round(e.nativeEvent.contentOffset.x / width));
+            }}
+            renderItem={({ item: uri }) => (
+              <View style={styles.lightboxPage}>
+                <Image source={{ uri }} style={styles.lightboxImage} resizeMode="contain" />
+              </View>
+            )}
+          />
+          {/* Close button */}
+          <TouchableOpacity style={styles.lightboxClose} onPress={() => setLightboxOpen(false)} activeOpacity={0.8}>
+            <Ionicons name="close" size={24} color="#fff" />
+          </TouchableOpacity>
+          {/* Counter */}
+          {liveItem.photos.length > 1 && (
+            <View style={styles.lightboxCounter}>
+              <Text style={styles.lightboxCounterText}>{lightboxIndex + 1} / {liveItem.photos.length}</Text>
+            </View>
+          )}
+        </View>
+      </Modal>
+
       <ScrollView style={styles.scroll} contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
-        {/* Hero image */}
-        <Image
-          source={{ uri: item.photos[0] }}
-          style={styles.image}
-          resizeMode="cover"
-        />
+        {/* Photo gallery */}
+        <View>
+          <FlatList
+            ref={galleryRef}
+            data={liveItem.photos}
+            keyExtractor={(_, i) => String(i)}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={(e) => {
+              setPhotoIndex(Math.round(e.nativeEvent.contentOffset.x / width));
+            }}
+            renderItem={({ item: uri, index }) => (
+              <TouchableOpacity
+                activeOpacity={0.95}
+                onPress={() => { setLightboxIndex(index); setLightboxOpen(true); }}
+              >
+                <Image source={{ uri }} style={styles.image} resizeMode="cover" />
+              </TouchableOpacity>
+            )}
+          />
+          {/* Dot indicators */}
+          {liveItem.photos.length > 1 && (
+            <View style={styles.dotRow}>
+              {liveItem.photos.map((_, i) => (
+                <View key={i} style={[styles.dot, i === photoIndex && styles.dotActive]} />
+              ))}
+            </View>
+          )}
+        </View>
 
         {/* SOLD / Picked Up banner */}
         {isSold && (
@@ -312,9 +377,70 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   image: {
-    width: '100%',
+    width,
     height: Platform.OS === 'web' ? Math.min(width * 0.75, 340) : width * 0.75,
     backgroundColor: colors.border,
+  },
+  dotRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+    position: 'absolute',
+    bottom: 12,
+    left: 0,
+    right: 0,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.5)',
+  },
+  dotActive: {
+    backgroundColor: '#fff',
+    width: 18,
+    borderRadius: 3,
+  },
+  lightboxOverlay: {
+    flex: 1,
+    backgroundColor: '#000',
+    justifyContent: 'center',
+  },
+  lightboxPage: {
+    width,
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  lightboxImage: {
+    width,
+    height: '100%',
+  },
+  lightboxClose: {
+    position: 'absolute',
+    top: 52,
+    right: 20,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lightboxCounter: {
+    position: 'absolute',
+    bottom: 48,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+  },
+  lightboxCounterText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
   },
   content: {
     backgroundColor: 'rgba(234, 240, 248, 0.82)',
