@@ -11,8 +11,7 @@ export async function fetchListings() {
     .select(`
       *,
       seller:profiles!seller_id (
-        id, display_name, avatar_url, rating, sales, status, building, seller_type, store_id,
-        phone_verified, avg_response_hours, ratings_count
+        id, display_name, avatar_url, rating, sales, status, building, seller_type, store_id
       ),
       store:stores (id, name, logo_url, rating, sales)
     `)
