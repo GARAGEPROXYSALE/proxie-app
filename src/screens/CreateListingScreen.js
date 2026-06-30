@@ -114,8 +114,8 @@ export default function CreateListingScreen({ navigation }) {
   // not just have GPS silently succeed in the background.
   const isValid = photos.length > 0 && isScheduleValid && isOutpostValid && (isOutpost || locationConfirmed) && (
     isTickets
-      ? eventName.trim() && price.trim() && eventDate.trim() && venue.trim() && numTickets
-      : title.trim() && price.trim() && description.trim() && category
+      ? eventName.trim() && (price === '' || price.trim()) && eventDate.trim() && venue.trim() && numTickets
+      : title.trim() && (price === '' || price.trim()) && description.trim() && category
   );
 
   const toggleScheduleDay = (day) => {
@@ -502,8 +502,12 @@ export default function CreateListingScreen({ navigation }) {
                   keyboardType="numeric"
                   maxLength={8}
                 />
-                <TouchableOpacity style={styles.freeBtn} onPress={() => setPrice('0')}>
-                  <Text style={styles.freeBtnText}>Free</Text>
+                <TouchableOpacity
+                  style={[styles.freeBtn, (!price || price === '0') && styles.freeBtnActive]}
+                  onPress={() => setPrice('0')}
+                  activeOpacity={0.75}
+                >
+                  <Text style={[styles.freeBtnText, (!price || price === '0') && styles.freeBtnTextActive]}>Free</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -974,8 +978,10 @@ const styles = StyleSheet.create({
   },
   dollarSign: { fontSize: 20, fontWeight: '700', color: colors.primary, marginRight: 4 },
   priceField: { flex: 1, fontSize: 20, fontWeight: '700', color: colors.text, paddingVertical: 14 },
-  freeBtn: { backgroundColor: colors.primaryLight, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5 },
-  freeBtnText: { fontSize: 12, fontWeight: '700', color: '#fff' },
+  freeBtn: { backgroundColor: colors.border, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5, opacity: 0.5 },
+  freeBtnActive: { backgroundColor: colors.primary, opacity: 1 },
+  freeBtnText: { fontSize: 12, fontWeight: '700', color: colors.textSecondary },
+  freeBtnTextActive: { color: '#fff' },
 
   chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
