@@ -55,6 +55,7 @@ export default function CreateListingScreen({ navigation }) {
   const [manualAddressError, setManualAddressError] = useState('');
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState('');
+  const [published, setPublished] = useState(false);
 
   // Standard listing fields
   const [title, setTitle] = useState('');
@@ -287,9 +288,10 @@ export default function CreateListingScreen({ navigation }) {
           setPublishError('Listing saved, but the payment page could not be opened. Open it again from My Garage to pay the Outpost fee.');
         });
         await beginOutpostMonitoring().catch(() => {});
+        navigation.goBack();
+      } else {
+        setPublished(true);
       }
-
-      navigation.goBack();
     } catch (e) {
       console.error('[CreateListing] publish failed:', e);
       setPublishError(e?.message || 'Could not publish. Please check your connection and try again.');
@@ -297,6 +299,42 @@ export default function CreateListingScreen({ navigation }) {
       setPublishing(false);
     }
   };
+
+  if (published) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.successWrap}>
+          <View style={styles.successIcon}>
+            <Ionicons name="checkmark-circle" size={72} color={colors.success} />
+          </View>
+          <Text style={styles.successTitle}>You're live!</Text>
+          <Text style={styles.successSub}>
+            Your listing is active for <Text style={{ fontWeight: '800', color: colors.text }}>7 days</Text>.{'\n'}
+            After that, hop into My Garage and tap{' '}
+            <Text style={{ fontWeight: '800', color: colors.primary }}>Relist</Text> to repost it in one tap —
+            no need to fill anything out again.
+          </Text>
+          <View style={styles.successTips}>
+            <View style={styles.successTipRow}>
+              <Ionicons name="notifications-outline" size={16} color={colors.primary} />
+              <Text style={styles.successTipText}>We'll remind you before it expires</Text>
+            </View>
+            <View style={styles.successTipRow}>
+              <Ionicons name="chatbubble-outline" size={16} color={colors.primary} />
+              <Text style={styles.successTipText}>Buyers will message you directly in the app</Text>
+            </View>
+            <View style={styles.successTipRow}>
+              <Ionicons name="repeat-outline" size={16} color={colors.primary} />
+              <Text style={styles.successTipText}>Relist anytime to bump it back to the top</Text>
+            </View>
+          </View>
+          <TouchableOpacity style={styles.successBtn} onPress={() => navigation.goBack()} activeOpacity={0.88}>
+            <Text style={styles.successBtnText}>Got it</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -1049,6 +1087,30 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF8E8', borderRadius: 12, padding: 12, marginBottom: 20,
   },
   tipText: { flex: 1, fontSize: 13, color: '#92630A', lineHeight: 18 },
+  successWrap: {
+    flex: 1, alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 32, gap: 0,
+  },
+  successIcon: { marginBottom: 20 },
+  successTitle: { fontSize: 32, fontWeight: '800', color: colors.text, letterSpacing: -0.5, marginBottom: 14 },
+  successSub: {
+    fontSize: 15, color: colors.textSecondary, textAlign: 'center',
+    lineHeight: 23, marginBottom: 28,
+  },
+  successTips: {
+    alignSelf: 'stretch', gap: 10, marginBottom: 36,
+    backgroundColor: colors.cardBackground, borderRadius: 16, padding: 16,
+  },
+  successTipRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  successTipText: { fontSize: 13, fontWeight: '500', color: colors.text, flex: 1 },
+  successBtn: {
+    backgroundColor: colors.primary, borderRadius: 16,
+    paddingVertical: 16, paddingHorizontal: 48,
+    shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3, shadowRadius: 10, elevation: 6,
+  },
+  successBtnText: { color: '#fff', fontSize: 17, fontWeight: '700' },
+
   publishFullBtn: {
     backgroundColor: colors.primary, borderRadius: 16, flexDirection: 'row',
     alignItems: 'center', justifyContent: 'center', paddingVertical: 16, gap: 8,

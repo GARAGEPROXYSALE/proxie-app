@@ -511,6 +511,23 @@ export function AppProvider({ children }) {
     }
   }, [user]);
 
+  const relistListing = useCallback(async (item) => {
+    return addListing({
+      title: item.title,
+      price: item.price,
+      description: item.description,
+      condition: item.condition || 'Good',
+      category: item.category,
+      photos: item.photos || [],
+      latitude: item.latitude,
+      longitude: item.longitude,
+      address: item.address || null,
+      availabilityType: item.availabilityType || 'anytime',
+      schedule: item.schedule || [],
+      isOutpost: false,
+    });
+  }, [addListing]);
+
   // ── Outpost ──────────────────────────────────────────────────
 
   // Opens Stripe Checkout in the system browser for the Outpost posting fee.
@@ -985,6 +1002,7 @@ export function AppProvider({ children }) {
         // Listings
         toggleSaved,
         addListing,
+        relistListing,
         incrementViews,
         incrementImpressions,
         renewListing,

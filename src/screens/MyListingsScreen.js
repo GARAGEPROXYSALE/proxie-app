@@ -17,12 +17,19 @@ const CARD_WIDTH = (width - 32 - CARD_GAP) / 2;
 
 const TABS = ['Active', 'Sold'];
 
-function ListingGridCard({ item, onPress, interestedCount, onShowInterested, onAddLocation, fixingLocation }) {
+function daysLeft(item) {
+  const daysSince = Math.floor((Date.now() - (item.createdAt || 0)) / 86400000);
+  return Math.max(0, 7 - daysSince);
+}
+
+function ListingGridCard({ item, onPress, interestedCount, onShowInterested, onAddLocation, fixingLocation, onRelist, relisting }) {
   const isSold = item.sold || item.pickedUp;
   const isPendingOutpost = item.is_outpost && !item.outpost_confirmed;
   // Outpost listings get their coordinates from the geocoded address instead
   // of device GPS, so a missing lat/long there isn't this kind of problem.
   const missingLocation = !item.is_outpost && (item.latitude == null || item.longitude == null);
+  const left = isSold ? null : daysLeft(item);
+  const expiringSoon = left !== null && left <= 2;
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.88}>
       <View style={styles.imageWrap}>
@@ -84,19 +91,50 @@ function ListingGridCard({ item, onPress, interestedCount, onShowInterested, onA
             </Text>
           </TouchableOpacity>
         )}
+        {left !== null && (
+          <View style={styles.expiryRow}>
+            <View style={[styles.expiryBadge, expiringSoon && styles.expiryBadgeUrgent]}>
+              <Ionicons name="time-outline" size={10} color={expiringSoon ? colors.danger : colors.textSecondary} />
+              <Text style={[styles.expiryText, expiringSoon && styles.expiryTextUrgent]}>
+                {left === 0 ? 'Expires today' : `${left}d left`}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.relistBtn}
+              onPress={(e) => { e.stopPropagation?.(); onRelist(item); }}
+              activeOpacity={0.75}
+              disabled={relisting}
+            >
+              <Ionicons name="repeat-outline" size={10} color="#fff" />
+              <Text style={styles.relistText}>{relisting ? '…' : 'Relist'}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     </TouchableOpacity>
   );
 }
 
 export default function MyListingsScreen({ navigation }) {
-  const { listings, user, openMarkSoldModal, addListingLocation } = useApp();
+  const { listings, user, openMarkSoldModal, addListingLocation, relistListing } = useApp();
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState('Active');
   const [interestedCounts, setInterestedCounts] = useState({});
   const [interestedSheetListing, setInterestedSheetListing] = useState(null);
   const [fixingLocationId, setFixingLocationId] = useState(null);
   const [locationError, setLocationError] = useState('');
+  const [relistingId, setRelistingId] = useState(null);
+
+  const handleRelist = async (item) => {
+    setRelistingId(item.id);
+    try {
+      await relistListing(item);
+    } catch (e) {
+      // silently ignore — addListing already rolls back optimistic update on error
+    } finally {
+      setRelistingId(null);
+    }
+  };
 
   const handleAddLocation = async (item) => {
     setLocationError('');
@@ -202,6 +240,8 @@ export default function MyListingsScreen({ navigation }) {
             onShowInterested={() => setInterestedSheetListing(item)}
             onAddLocation={handleAddLocation}
             fixingLocation={fixingLocationId === item.id}
+            onRelist={handleRelist}
+            relisting={relistingId === item.id}
           />
         )}
       />
@@ -314,6 +354,23 @@ const styles = StyleSheet.create({
     borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3, marginTop: 6,
   },
   interestedBadgeText: { fontSize: 10, fontWeight: '700', color: colors.primary },
+
+  // Expiry + relist
+  expiryRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6 },
+  expiryBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: colors.border, borderRadius: 6,
+    paddingHorizontal: 5, paddingVertical: 2,
+  },
+  expiryBadgeUrgent: { backgroundColor: colors.danger + '15' },
+  expiryText: { fontSize: 9, fontWeight: '600', color: colors.textSecondary },
+  expiryTextUrgent: { color: colors.danger },
+  relistBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: colors.primary, borderRadius: 6,
+    paddingHorizontal: 6, paddingVertical: 2,
+  },
+  relistText: { fontSize: 9, fontWeight: '700', color: '#fff' },
 
   // Missing location
   missingLocationBadge: {
