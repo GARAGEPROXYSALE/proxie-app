@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import RadarView from '../components/RadarView';
 import MasonryGrid from '../components/MasonryGrid';
+import FilterToast from '../components/FilterToast';
 import { PROXIMITY_SNAPS, proximityLabel, nextProximitySnap, getAvailabilityStatus } from '../lib/listingUtils';
 import { getUserLocation } from '../lib/location';
 import colors from '../theme/colors';
@@ -30,6 +31,8 @@ export default function NearbyScreen({ navigation }) {
   const isHost = userType === 'host';
   const [viewMode, setViewMode] = useState('radar');
   const [activeNowOnly, setActiveNowOnly] = useState(false);
+  const [filterToast, setFilterToast] = useState({ visible: false, on: false });
+  const filterToastTimer = useRef(null);
   const insets = useSafeAreaInsets();
 
   const [refreshing, setRefreshing] = useState(false);
@@ -51,6 +54,13 @@ export default function NearbyScreen({ navigation }) {
   useEffect(() => {
     if (!userLocation && activeNowOnly) setActiveNowOnly(false);
   }, [userLocation]);
+
+  // Cleanup filter toast timer on unmount
+  useEffect(() => {
+    return () => {
+      if (filterToastTimer.current) clearTimeout(filterToastTimer.current);
+    };
+  }, []);
 
   // Cleanup stale notice timer on unmount
   useEffect(() => {
@@ -186,7 +196,13 @@ export default function NearbyScreen({ navigation }) {
             {viewMode === 'radar' && userLocation && (
               <TouchableOpacity
                 style={[styles.activeNowToggle, activeNowOnly && styles.activeNowToggleOn]}
-                onPress={() => setActiveNowOnly((v) => !v)}
+                onPress={() => {
+                  const next = !activeNowOnly;
+                  setActiveNowOnly(next);
+                  if (filterToastTimer.current) clearTimeout(filterToastTimer.current);
+                  setFilterToast({ visible: true, on: next });
+                  filterToastTimer.current = setTimeout(() => setFilterToast((t) => ({ ...t, visible: false })), 3500);
+                }}
                 activeOpacity={0.8}
               >
                 <View style={[styles.activeNowDot, activeNowOnly && styles.activeNowDotOn]} />
@@ -356,6 +372,7 @@ export default function NearbyScreen({ navigation }) {
           ))}
         </ScrollView>
       </View>
+      <FilterToast visible={filterToast.visible} on={filterToast.on} />
     </View>
   );
 }
