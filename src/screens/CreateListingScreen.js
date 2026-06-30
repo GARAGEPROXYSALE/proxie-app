@@ -18,8 +18,26 @@ const CONDITIONS = ['New', 'Like New', 'Good', 'Fair'];
 const CATEGORIES = ['Furniture', 'Electronics', 'Clothing', 'Books', 'Kitchen', 'Sports', 'Toys', 'Tickets', 'Other'];
 const TICKET_TYPES = ['General Admission', 'Reserved', 'VIP', 'Suite'];
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
+const TIME_RE = /^(1[0-2]|0?[1-9]):([0-5]\d)\s?(AM|PM)$/i;
 const DATE_RE = /^(0[1-9]|1[0-2])\/(0[1-9]|[12]\d|3[01])\/20\d{2}$/;
+
+function to24hr(t) {
+  const m = t.trim().match(/^(\d{1,2}):(\d{2})\s?(AM|PM)$/i);
+  if (!m) return null;
+  let h = parseInt(m[1], 10);
+  const min = m[2];
+  const period = m[3].toUpperCase();
+  if (period === 'PM' && h !== 12) h += 12;
+  if (period === 'AM' && h === 12) h = 0;
+  return `${String(h).padStart(2, '0')}:${min}`;
+}
+
+function timeToMinutes(t) {
+  const t24 = to24hr(t);
+  if (!t24) return 0;
+  const [h, m] = t24.split(':').map(Number);
+  return h * 60 + m;
+}
 
 export default function CreateListingScreen({ navigation }) {
   const { addListing, user, payOutpostFee, beginOutpostMonitoring } = useApp();
@@ -56,8 +74,8 @@ export default function CreateListingScreen({ navigation }) {
   // Availability
   const [availabilityType, setAvailabilityType] = useState('anytime'); // 'anytime' | 'scheduled'
   const [scheduleDays, setScheduleDays] = useState([]); // [0-6]
-  const [scheduleStart, setScheduleStart] = useState('09:00');
-  const [scheduleEnd, setScheduleEnd] = useState('17:00');
+  const [scheduleStart, setScheduleStart] = useState('9:00 AM');
+  const [scheduleEnd, setScheduleEnd] = useState('5:00 PM');
 
   // Outpost — pre-post for a future date/location, GPS auto-confirms it live
   const [isOutpost, setIsOutpost] = useState(false);
@@ -72,7 +90,7 @@ export default function CreateListingScreen({ navigation }) {
     scheduleDays.length > 0 &&
     TIME_RE.test(scheduleStart) &&
     TIME_RE.test(scheduleEnd) &&
-    scheduleStart < scheduleEnd
+    timeToMinutes(scheduleStart) < timeToMinutes(scheduleEnd)
   );
 
   const outpostScheduledDate = (() => {
@@ -255,7 +273,7 @@ export default function CreateListingScreen({ navigation }) {
         address: isOutpost ? outpostAddress.trim() : null,
         availabilityType,
         schedule: availabilityType === 'scheduled'
-          ? [{ days: scheduleDays, start: scheduleStart, end: scheduleEnd }]
+          ? [{ days: scheduleDays, start: to24hr(scheduleStart) || scheduleStart, end: to24hr(scheduleEnd) || scheduleEnd }]
           : [],
         isOutpost,
         outpostScheduledAt: isOutpost ? outpostScheduledDate.toISOString() : null,
@@ -668,11 +686,12 @@ export default function CreateListingScreen({ navigation }) {
                       <Text style={styles.timeFieldLabel}>From</Text>
                       <TextInput
                         style={styles.timeInput}
-                        placeholder="09:00"
+                        placeholder="9:00 AM"
                         placeholderTextColor={colors.textLight}
                         value={scheduleStart}
                         onChangeText={setScheduleStart}
-                        maxLength={5}
+                        maxLength={8}
+                        autoCapitalize="characters"
                       />
                     </View>
                     <Text style={styles.timeDash}>–</Text>
@@ -680,20 +699,21 @@ export default function CreateListingScreen({ navigation }) {
                       <Text style={styles.timeFieldLabel}>To</Text>
                       <TextInput
                         style={styles.timeInput}
-                        placeholder="17:00"
+                        placeholder="5:00 PM"
                         placeholderTextColor={colors.textLight}
                         value={scheduleEnd}
                         onChangeText={setScheduleEnd}
-                        maxLength={5}
+                        maxLength={8}
+                        autoCapitalize="characters"
                       />
                     </View>
                   </View>
                   <Text style={styles.scheduleHint}>
-                    24-hour format, e.g. 09:00–14:00. Your listing stays visible at all times — buyers just see when you're actually available.
+                    e.g. 9:00 AM – 5:00 PM. Your listing stays visible at all times — buyers just see when you're actually available.
                   </Text>
                   {!isScheduleValid && (
                     <Text style={styles.scheduleError}>
-                      Pick at least one day and a valid time range (from before to).
+                      Pick at least one day and a valid time range (e.g. 9:00 AM – 5:00 PM).
                     </Text>
                   )}
                 </View>
