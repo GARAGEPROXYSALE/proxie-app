@@ -66,6 +66,7 @@ export function AppProvider({ children }) {
   // ── Auth ─────────────────────────────────────────────────────
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userType, setUserType] = useState(null); // 'host' | 'guest'
+  const signingOutRef = useRef(false);
 
   // ── Core state ───────────────────────────────────────────────
   const [isLive, setIsLive] = useState(true);
@@ -111,9 +112,12 @@ export function AppProvider({ children }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       // TOKEN_REFRESHED and USER_UPDATED don't need a full profile reload
       if (event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') return;
+      // While signing out, ignore any event that would re-authenticate
+      if (signingOutRef.current && session?.user) return;
       if (session?.user) {
         loadUserSession(session.user);
       } else {
+        signingOutRef.current = false; // sign-out confirmed by Supabase
         setIsAuthenticated(false);
         setUserType(null);
         setBlockedUsers([]);
@@ -327,6 +331,7 @@ export function AppProvider({ children }) {
   }, []);
 
   const signOut = useCallback(() => {
+    signingOutRef.current = true; // block any auth event from re-authenticating
     // Clear state first so UI updates immediately regardless of network
     setIsAuthenticated(false);
     setUserType(null);
