@@ -168,6 +168,7 @@ export function AppProvider({ children }) {
   }, [userLocation?.latitude, userLocation?.longitude, proximityMiles, selectedCategory, isAuthenticated, user?.id]);
 
   const loadUserSession = useCallback(async (authUser) => {
+    if (signingOutRef.current) return;
     let { data: profile } = await supabase
       .from('profiles')
       .select('*')
@@ -332,6 +333,7 @@ export function AppProvider({ children }) {
 
   const signOut = useCallback(() => {
     signingOutRef.current = true; // block any auth event from re-authenticating
+    setTimeout(() => { signingOutRef.current = false; }, 5000); // safety reset
     // Clear state first so UI updates immediately regardless of network
     setIsAuthenticated(false);
     setUserType(null);
