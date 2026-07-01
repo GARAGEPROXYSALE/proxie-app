@@ -16,7 +16,7 @@ const SLIDES = [
     icon: 'radio',
     iconBg: colors.primary,
     accent: colors.primary,
-    headline: 'Your block is\na marketplace',
+    headline: 'Yard sale.\nGarage sale.\nIt doesn\'t matter.\nIt\'s here.',
     body: 'Proxie shows you real items for sale within walking distance — from 500 ft up to 7 miles away. No shipping. No waiting.',
     detail: [
       { icon: 'location', text: 'Hyper-local radius you control' },
