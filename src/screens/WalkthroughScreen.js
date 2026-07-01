@@ -78,7 +78,9 @@ export default function WalkthroughScreen({ navigation }) {
 
   const next = () => {
     if (activeIndex < SLIDES.length - 1) {
-      listRef.current?.scrollToIndex({ index: activeIndex + 1, animated: true });
+      const nextIndex = activeIndex + 1;
+      listRef.current?.scrollToOffset({ offset: nextIndex * width, animated: true });
+      setActiveIndex(nextIndex);
     } else {
       finish();
     }
