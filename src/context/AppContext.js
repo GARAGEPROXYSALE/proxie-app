@@ -108,7 +108,9 @@ export function AppProvider({ children }) {
     });
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      // TOKEN_REFRESHED and USER_UPDATED don't need a full profile reload
+      if (event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') return;
       if (session?.user) {
         loadUserSession(session.user);
       } else {
@@ -331,6 +333,10 @@ export function AppProvider({ children }) {
     setUser(currentUser);
     setBlockedUsers([]);
     setMessages([]);
+    setWishlist([]);
+    setMarkSoldModal({ visible: false, item: null });
+    setRatingPrompt({ visible: false, item: null, buyerName: '', role: 'seller', ratedUserId: null });
+    setToast({ visible: false });
   }, []);
 
   // ── Block / unblock ──────────────────────────────────────────
@@ -359,7 +365,6 @@ export function AppProvider({ children }) {
 
   const navigateFromToast = useCallback(() => {
     dismissToast();
-    if (onNavigateRef.current) onNavigateRef.current();
   }, [dismissToast]);
 
   // ── Sold flow ────────────────────────────────────────────────
@@ -553,7 +558,7 @@ export function AppProvider({ children }) {
     setListings((prev) =>
       prev.map((l) => l.id === id ? { ...l, tap_count: (l.tap_count || 0) + 1 } : l)
     );
-    incrementViewsRPC(id);
+    incrementViewsRPC(id).catch(() => {});
   }, []);
 
   const incrementImpressions = useCallback((id) => {
