@@ -18,8 +18,6 @@ export default function OnboardingScreen({ navigation }) {
           <Ionicons name="radio" size={52} color="#fff" />
         </View>
         <Text style={styles.appName}>Proxie</Text>
-        <Text style={styles.tagline}>The world's biggest garage sale,{'\n'}right outside your door.</Text>
-
         {/* Feature pills */}
         <View style={styles.pillRow}>
           <View style={styles.pill}>
