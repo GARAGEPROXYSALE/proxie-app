@@ -324,12 +324,13 @@ export function AppProvider({ children }) {
     setIsAuthenticated(true);
   }, []);
 
-  const signOut = useCallback(() => {
-    supabase.auth.signOut().catch(() => {}); // fire and forget
+  const signOut = useCallback(async () => {
+    await supabase.auth.signOut().catch(() => {});
     setIsAuthenticated(false);
     setUserType(null);
     setUser(currentUser);
     setBlockedUsers([]);
+    setMessages([]);
   }, []);
 
   // ── Block / unblock ──────────────────────────────────────────
