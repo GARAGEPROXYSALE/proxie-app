@@ -326,8 +326,8 @@ export function AppProvider({ children }) {
     setIsAuthenticated(true);
   }, []);
 
-  const signOut = useCallback(async () => {
-    await supabase.auth.signOut().catch(() => {});
+  const signOut = useCallback(() => {
+    // Clear state first so UI updates immediately regardless of network
     setIsAuthenticated(false);
     setUserType(null);
     setUser(currentUser);
@@ -337,6 +337,8 @@ export function AppProvider({ children }) {
     setMarkSoldModal({ visible: false, item: null });
     setRatingPrompt({ visible: false, item: null, buyerName: '', role: 'seller', ratedUserId: null });
     setToast({ visible: false });
+    // Invalidate the Supabase session server-side in the background
+    supabase.auth.signOut().catch(() => {});
   }, []);
 
   // ── Block / unblock ──────────────────────────────────────────
